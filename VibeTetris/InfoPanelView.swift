@@ -8,13 +8,13 @@ struct InfoPanelView: View {
     let nextPieceBlocks: [PieceBlock]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("SCORE")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text("\(score)")
-                    .font(.title.weight(.medium))
+                    .font(.largeTitle.monospacedDigit().weight(.medium))
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -22,7 +22,7 @@ struct InfoPanelView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text("\(level)")
-                    .font(.title.weight(.medium))
+                    .font(.largeTitle.monospacedDigit().weight(.medium))
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -30,7 +30,7 @@ struct InfoPanelView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text("\(linesCleared)")
-                    .font(.title.weight(.medium))
+                    .font(.largeTitle.monospacedDigit().weight(.medium))
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -41,9 +41,9 @@ struct InfoPanelView: View {
                     .aspectRatio(1, contentMode: .fit)
             }
         }
-        .padding(12)
+        .padding(20)
         .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
     }
 }
