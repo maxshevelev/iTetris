@@ -17,7 +17,7 @@ final class GameViewModel {
     private var tickTask: Task<Void, Never>?
 
     init() {
-        controller = GameController(onGameFinished: {})
+        controller = GameController()
         tickTask = Task {
             for await events in controller.tick {
                 apply(events)
@@ -33,8 +33,9 @@ final class GameViewModel {
     func moveRight() { Task { await controller.enqueue(.moveRight) } }
     func rotate() { Task { await controller.enqueue(.rotate) } }
     func hardDrop() { Task { await controller.enqueue(.hardDrop) } }
-    func togglePause() { Task { await controller.enqueue(.esc) } }
-    func quit() { Task { await controller.enqueue(.quit) } }
+    func pause() { Task { await controller.enqueue(.pause) } }
+    func resume() { Task { await controller.enqueue(.resume) } }
+    func stop() { Task { await controller.enqueue(.stop) } }
 
     private func apply(_ events: Set<GameEvent>) {
         for event in events {

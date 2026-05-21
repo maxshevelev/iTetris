@@ -36,7 +36,7 @@ struct ContentView: View {
                     onMoveRight: { viewModel.moveRight() },
                     onRotate: { viewModel.rotate() },
                     onHardDrop: { viewModel.hardDrop() },
-                    onPause: { viewModel.togglePause() }
+                    onPause: { viewModel.pause() }
                 )
                 .padding(.bottom, 24)
 
@@ -69,11 +69,11 @@ struct ContentView: View {
                 Text("PAUSED")
                     .font(.largeTitle.bold())
                     .foregroundStyle(.white)
-                Text("Press ESC or tap Pause to continue")
+                Text("Tap to resume")
                     .foregroundStyle(.gray)
             }
         }
-        .onTapGesture { viewModel.togglePause() }
+        .onTapGesture { viewModel.resume() }
     }
 
     private var gameOverOverlay: some View {
@@ -132,8 +132,8 @@ struct ContentView: View {
         case .upArrow:    viewModel.rotate()
         case .downArrow:  viewModel.hardDrop()
         case .space:      viewModel.hardDrop()
-        case .escape:     viewModel.togglePause()
-        case .init("q"):  viewModel.quit()
+        case .escape:     viewModel.pause()
+        case .init("q"):  viewModel.stop()
         default:          return .ignored
         }
         return .handled
