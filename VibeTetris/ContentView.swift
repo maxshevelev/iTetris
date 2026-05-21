@@ -53,10 +53,10 @@ struct ContentView: View {
                 hardDropFlash = false
             }
         }
-        .onKeyPress(phases: .down, action: handleKeyPress)
         #if os(macOS)
         .focusable()
         .focusEffectDisabled()
+        .onKeyPress(action: handleKeyPress)
         #endif
     }
 
@@ -146,22 +146,19 @@ struct ContentView: View {
 
     // MARK: - Keyboard (macOS)
 
+    #if os(macOS)
     private func handleKeyPress(_ press: KeyPress) -> KeyPress.Result {
         switch press.key {
         case .init("j"): viewModel.moveLeft()
         case .init("l"): viewModel.moveRight()
         case .init("k"): viewModel.rotate()
-        case .space:
-            if viewModel.displayState == .paused {
-                viewModel.resume()
-            } else {
-                viewModel.hardDrop()
-            }
+        case .space:     viewModel.displayState == .paused ? viewModel.resume() : viewModel.hardDrop()
         case .escape:    viewModel.pause()
         default:         return .ignored
         }
         return .handled
     }
+    #endif
 }
 
 #Preview {
