@@ -1,0 +1,15 @@
+{
+  "originHash" : "e908011d854e7283564620f8ca31d816042e4d34a166c2396d8a0eb025e9bd11",
+  "pins" : [
+    {
+      "identity" : "tetriscore",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/maxshevelev/TetrisCore.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "87fc2e19dc7986a7fa11ee0f23ee80ada59d6c18"
+      }
+    }
+  ],
+  "version" : 3
+}
