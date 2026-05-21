@@ -12,39 +12,37 @@ struct InfoPanelView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("SCORE")
                     .font(.caption)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(.secondary)
                 Text("\(score)")
                     .font(.title2.monospacedDigit())
-                    .foregroundStyle(.white)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("LEVEL")
                     .font(.caption)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(.secondary)
                 Text("\(level)")
                     .font(.title2.monospacedDigit())
-                    .foregroundStyle(.white)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("LINES")
                     .font(.caption)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(.secondary)
                 Text("\(linesCleared)")
                     .font(.title2.monospacedDigit())
-                    .foregroundStyle(.white)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("NEXT")
                     .font(.caption)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(.secondary)
                 PiecePreviewView(blocks: nextPieceBlocks)
             }
         }
         .padding(12)
-        .background(.black.opacity(0.6))
+        .background(.white)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
     }
 }

@@ -6,44 +6,31 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.cream.ignoresSafeArea()
 
-            VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 16) {
                 Spacer(minLength: 0)
 
-                HStack(alignment: .top, spacing: 16) {
-                    Spacer(minLength: 0)
-
-                    TetrisBoardView(
-                        grid: viewModel.grid,
-                        pieceBlocks: viewModel.pieceBlocks
-                    )
-                    .frame(maxWidth: 360, maxHeight: .infinity)
-                    .padding(.vertical, 8)
-
-                    InfoPanelView(
-                        score: viewModel.score,
-                        level: viewModel.level,
-                        linesCleared: viewModel.linesCleared,
-                        nextPieceBlocks: viewModel.nextPieceBlocks
-                    )
-
-                    Spacer(minLength: 0)
-                }
-
-                GameControlsView(
-                    onMoveLeft: { viewModel.moveLeft() },
-                    onMoveRight: { viewModel.moveRight() },
-                    onRotate: { viewModel.rotate() },
-                    onHardDrop: { viewModel.hardDrop() },
-                    onPause: { viewModel.pause() }
+                TetrisBoardView(
+                    grid: viewModel.grid,
+                    pieceBlocks: viewModel.pieceBlocks
                 )
-                .padding(.bottom, 24)
+                .frame(maxWidth: 360, maxHeight: .infinity)
+                .padding(.vertical, 8)
+                .gesture(swipeGesture)
+                .simultaneousGesture(rotateTap)
+                .simultaneousGesture(pauseLongPress)
+
+                InfoPanelView(
+                    score: viewModel.score,
+                    level: viewModel.level,
+                    linesCleared: viewModel.linesCleared,
+                    nextPieceBlocks: viewModel.nextPieceBlocks
+                )
 
                 Spacer(minLength: 0)
             }
 
-            // Overlays
             if viewModel.displayState == .paused {
                 pauseOverlay
             }
@@ -60,17 +47,42 @@ struct ContentView: View {
         #endif
     }
 
+    // MARK: - Gestures
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onEnded { value in
+                let dx = value.translation.width
+                let dy = value.translation.height
+                if abs(dx) > abs(dy) {
+                    if dx > 0 { viewModel.moveRight() }
+                    else { viewModel.moveLeft() }
+                } else if dy > 0 {
+                    viewModel.hardDrop()
+                }
+            }
+    }
+
+    private var rotateTap: some Gesture {
+        TapGesture()
+            .onEnded { viewModel.rotate() }
+    }
+
+    private var pauseLongPress: some Gesture {
+        LongPressGesture(minimumDuration: 0.5)
+            .onEnded { _ in viewModel.pause() }
+    }
+
     // MARK: - Overlays
 
     private var pauseOverlay: some View {
         ZStack {
-            Color.black.opacity(0.7).ignoresSafeArea()
+            Color.cream.opacity(0.92).ignoresSafeArea()
             VStack(spacing: 16) {
                 Text("PAUSED")
                     .font(.largeTitle.bold())
-                    .foregroundStyle(.white)
                 Text("Tap to resume")
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(.secondary)
             }
         }
         .onTapGesture { viewModel.resume() }
@@ -78,25 +90,23 @@ struct ContentView: View {
 
     private var gameOverOverlay: some View {
         ZStack {
-            Color.black.opacity(0.8).ignoresSafeArea()
+            Color.cream.opacity(0.92).ignoresSafeArea()
             VStack(spacing: 16) {
                 Text("GAME OVER")
                     .font(.largeTitle.bold())
-                    .foregroundStyle(.white)
 
                 VStack(spacing: 4) {
                     Text("Score: \(viewModel.score)")
                         .font(.title2)
-                        .foregroundStyle(.white)
                     Text("Level: \(viewModel.level)  Lines: \(viewModel.linesCleared)")
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(.secondary)
                 }
 
                 if !viewModel.topScores.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("TOP SCORES")
                             .font(.caption)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(.secondary)
                             .padding(.top, 8)
                         ForEach(viewModel.topScores.prefix(5), id: \.self) { entry in
                             HStack {
@@ -107,7 +117,6 @@ struct ContentView: View {
                                     .monospacedDigit()
                             }
                             .font(.caption)
-                            .foregroundStyle(.white.opacity(0.8))
                             .frame(width: 200)
                         }
                     }
@@ -127,14 +136,12 @@ struct ContentView: View {
     #if os(macOS)
     private func handleKeyPress(_ press: KeyPress) -> KeyPress.Result {
         switch press.key {
-        case .leftArrow:  viewModel.moveLeft()
-        case .rightArrow: viewModel.moveRight()
-        case .upArrow:    viewModel.rotate()
-        case .downArrow:  viewModel.hardDrop()
-        case .space:      viewModel.hardDrop()
-        case .escape:     viewModel.pause()
-        case .init("q"):  viewModel.stop()
-        default:          return .ignored
+        case .init("j"): viewModel.moveLeft()
+        case .init("l"): viewModel.moveRight()
+        case .init("k"): viewModel.rotate()
+        case .space:     viewModel.hardDrop()
+        case .escape:    viewModel.pause()
+        default:         return .ignored
         }
         return .handled
     }

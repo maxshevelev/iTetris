@@ -27,11 +27,11 @@ struct PiecePreviewView: View {
             }
         }
         .frame(width: 80, height: 80)
-        .background(.black.opacity(0.85))
+        .background(.white)
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(.gray.opacity(0.5), lineWidth: 1)
+                .stroke(.gray.opacity(0.3), lineWidth: 1)
         )
     }
 }

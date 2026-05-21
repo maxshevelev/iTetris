@@ -67,3 +67,8 @@ extension TetrominoColor {
         }
     }
 }
+
+extension Color {
+    static let cream = Color(red: 0.992, green: 0.973, blue: 0.918)
+    static let creamDark = Color(red: 0.949, green: 0.918, blue: 0.847)
+}
