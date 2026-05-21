@@ -1,9 +1,15 @@
 import SwiftUI
 import TetrisCore
+#if os(macOS)
+import AppKit
+#endif
 
 struct ContentView: View {
     @State private var viewModel = GameViewModel()
     @State private var hardDropFlash = false
+    #if os(macOS)
+    @State private var keyMonitor: Any?
+    #endif
 
     var body: some View {
         ZStack {
@@ -46,18 +52,29 @@ struct ContentView: View {
                 gameOverOverlay
             }
         }
-        .onAppear { viewModel.start() }
+        .onAppear {
+            viewModel.start()
+            #if os(macOS)
+            NSApp.activate(ignoringOtherApps: true)
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                handleKeyEvent(event)
+                return nil
+            }
+            #endif
+        }
+        .onDisappear {
+            #if os(macOS)
+            if let monitor = keyMonitor {
+                NSEvent.removeMonitor(monitor)
+            }
+            #endif
+        }
         .onChange(of: viewModel.hardDropTrigger) {
             hardDropFlash = true
             withAnimation(.easeOut(duration: 0.25)) {
                 hardDropFlash = false
             }
         }
-        #if os(macOS)
-        .focusable()
-        .focusEffectDisabled()
-        .onKeyPress(action: handleKeyPress)
-        #endif
     }
 
     // MARK: - Gestures
@@ -147,16 +164,17 @@ struct ContentView: View {
     // MARK: - Keyboard (macOS)
 
     #if os(macOS)
-    private func handleKeyPress(_ press: KeyPress) -> KeyPress.Result {
-        switch press.key {
-        case .init("j"): viewModel.moveLeft()
-        case .init("l"): viewModel.moveRight()
-        case .init("k"): viewModel.rotate()
-        case .space:     viewModel.displayState == .paused ? viewModel.resume() : viewModel.hardDrop()
-        case .escape:    viewModel.pause()
-        default:         return .ignored
+    private func handleKeyEvent(_ event: NSEvent) {
+        switch Int(event.keyCode) {
+        case 38: viewModel.moveLeft()                    // j
+        case 37: viewModel.moveRight()                   // l
+        case 40: viewModel.rotate()                      // k
+        case 49:                                         // space
+            if viewModel.displayState == .paused { viewModel.resume() }
+            else { viewModel.hardDrop() }
+        case 53: viewModel.pause()                       // escape
+        default: break
         }
-        return .handled
     }
     #endif
 }
