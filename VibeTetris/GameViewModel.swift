@@ -12,9 +12,11 @@ final class GameViewModel {
     var displayState: GameDisplayState = .playing
     var topScores: [StoredScore] = []
     var playerName: String = ""
+    var hardDropTrigger = 0
 
     private let controller: GameController
     private var tickTask: Task<Void, Never>?
+    private var previousPieceMinY: Int?
 
     init() {
         controller = GameController()
@@ -41,7 +43,13 @@ final class GameViewModel {
         for event in events {
             switch event {
             case .grid(let v): grid = v
-            case .pieceBlocks(let v): pieceBlocks = v
+            case .pieceBlocks(let v):
+                let newMinY = v.map(\.y).min()
+                if let prev = previousPieceMinY, let cur = newMinY, cur - prev > 1 {
+                    hardDropTrigger &+= 1
+                }
+                previousPieceMinY = newMinY
+                pieceBlocks = v
             case .nextPieceBlocks(let v): nextPieceBlocks = v
             case .score(let v): score = v
             case .level(let v): level = v

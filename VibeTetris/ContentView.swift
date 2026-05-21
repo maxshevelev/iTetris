@@ -3,6 +3,7 @@ import TetrisCore
 
 struct ContentView: View {
     @State private var viewModel = GameViewModel()
+    @State private var hardDropFlash = false
 
     var body: some View {
         ZStack {
@@ -20,6 +21,11 @@ struct ContentView: View {
                 .gesture(swipeGesture)
                 .simultaneousGesture(rotateTap)
                 .simultaneousGesture(pauseLongPress)
+                .overlay(
+                    Rectangle()
+                        .fill(.white.opacity(hardDropFlash ? 0.35 : 0))
+                        .allowsHitTesting(false)
+                )
 
                 InfoPanelView(
                     score: viewModel.score,
@@ -27,6 +33,7 @@ struct ContentView: View {
                     linesCleared: viewModel.linesCleared,
                     nextPieceBlocks: viewModel.nextPieceBlocks
                 )
+                .frame(width: 120)
 
                 Spacer(minLength: 0)
             }
@@ -40,6 +47,12 @@ struct ContentView: View {
             }
         }
         .onAppear { viewModel.start() }
+        .onChange(of: viewModel.hardDropTrigger) {
+            hardDropFlash = true
+            withAnimation(.easeOut(duration: 0.25)) {
+                hardDropFlash = false
+            }
+        }
         #if os(macOS)
         .focusable()
         .focusEffectDisabled()

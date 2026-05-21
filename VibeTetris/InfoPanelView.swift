@@ -8,29 +8,29 @@ struct InfoPanelView: View {
     let nextPieceBlocks: [PieceBlock]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("SCORE")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text("\(score)")
-                    .font(.title2.monospacedDigit())
+                    .font(.title.weight(.medium))
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("LEVEL")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text("\(level)")
-                    .font(.title2.monospacedDigit())
+                    .font(.title.weight(.medium))
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("LINES")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text("\(linesCleared)")
-                    .font(.title2.monospacedDigit())
+                    .font(.title.weight(.medium))
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -38,6 +38,7 @@ struct InfoPanelView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 PiecePreviewView(blocks: nextPieceBlocks)
+                    .aspectRatio(1, contentMode: .fit)
             }
         }
         .padding(12)
