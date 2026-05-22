@@ -46,7 +46,8 @@ struct ContentView: View {
                     score: viewModel.score,
                     level: viewModel.level,
                     linesCleared: viewModel.linesCleared,
-                    nextPieceBlocks: viewModel.nextPieceBlocks
+                    nextPieceBlocks: viewModel.nextPieceBlocks,
+                    onStop: { viewModel.stop() }
                 )
                 .frame(width: 160)
                 .padding(.top, 8)
@@ -155,8 +156,8 @@ struct ContentView: View {
             VStack(spacing: 16) {
                 Text("PAUSED")
                     .font(.largeTitle.bold())
-                Text("Tap to resume")
-                    .foregroundStyle(.secondary)
+                Button("Resume") { viewModel.resume() }
+                    .buttonStyle(.borderedProminent)
             }
         }
         .onTapGesture { viewModel.resume() }

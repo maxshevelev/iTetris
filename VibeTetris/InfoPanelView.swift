@@ -6,6 +6,7 @@ struct InfoPanelView: View {
     let level: Int
     let linesCleared: Int
     let nextPieceBlocks: [PieceBlock]
+    var onStop: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -39,6 +40,11 @@ struct InfoPanelView: View {
                     .foregroundStyle(.secondary)
                 PiecePreviewView(blocks: nextPieceBlocks)
                     .aspectRatio(1, contentMode: .fit)
+            }
+
+            if let onStop {
+                Button("Stop", role: .destructive, action: onStop)
+                    .buttonStyle(.bordered)
             }
         }
         .padding(20)
