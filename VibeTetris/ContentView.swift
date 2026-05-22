@@ -69,7 +69,16 @@ struct ContentView: View {
         .onChange(of: viewModel.hardDropAnimation) {
             if let anim = viewModel.hardDropAnimation {
                 hardDropProgress = 0
-                withAnimation(.easeIn(duration: anim.duration)) {
+                Task {
+                    let start = Date()
+                    let duration = anim.duration
+                    var step: CGFloat = 0
+                    while step < 1 {
+                        let elapsed = Date().timeIntervalSince(start)
+                        step = CGFloat(elapsed / duration)
+                        hardDropProgress = step
+                        try? await Task.sleep(for: .milliseconds(16))
+                    }
                     hardDropProgress = 1.0
                 }
             }
