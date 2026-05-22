@@ -218,6 +218,7 @@ struct ContentView: View {
             if viewModel.displayState == .paused { viewModel.resume() }
             else { viewModel.hardDrop() }
         case .escape: viewModel.pause()
+        case .init("q"): viewModel.stop()
         default: return .ignored
         }
         return .handled
