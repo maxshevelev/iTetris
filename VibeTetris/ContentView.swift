@@ -179,7 +179,7 @@ struct ContentView: View {
                 if !viewModel.topScores.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("TOP SCORES")
-                            .font(.caption)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .padding(.top, 8)
                         ForEach(viewModel.topScores.prefix(5), id: \.self) { entry in
@@ -190,7 +190,7 @@ struct ContentView: View {
                                 Text("\(entry.score)")
                                     .monospacedDigit()
                             }
-                            .font(.caption)
+                            .font(.subheadline)
                             .frame(width: 200)
                         }
                     }
