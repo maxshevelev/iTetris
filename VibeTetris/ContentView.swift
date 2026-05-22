@@ -9,6 +9,8 @@ struct ContentView: View {
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
     @State private var isAnimatingHardDrop = false
+    @State private var lineClearProgress: CGFloat = 0
+    @State private var isAnimatingLineClear = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -25,8 +27,11 @@ struct ContentView: View {
                 )
                 .frame(maxWidth: 360, maxHeight: .infinity)
                 .overlay {
-                    if isAnimatingHardDrop {
-                        GeometryReader { geo in
+                    GeometryReader { geo in
+                        if isAnimatingLineClear {
+                            lineClearBurnView(size: geo.size)
+                        }
+                        if isAnimatingHardDrop {
                             hardDropPieceView(size: geo.size)
                         }
                     }
@@ -90,6 +95,46 @@ struct ContentView: View {
                 try? await Task.sleep(for: .milliseconds(80))
                 hardDropFlash = false
             }
+        }
+        .onChange(of: viewModel.lineClearTrigger) {
+            isAnimatingLineClear = true
+            lineClearProgress = 0
+            let duration = viewModel.lineClearAnimDuration
+            withAnimation(.easeIn(duration: duration)) {
+                lineClearProgress = 1.0
+            }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(duration + 0.05))
+                isAnimatingLineClear = false
+            }
+        }
+    }
+
+    // MARK: - Line Clear Burn Overlay
+
+    private func lineClearBurnView(size: CGSize) -> some View {
+        let cellSize = min(size.width / 10, size.height / 20)
+        let offsetX = (size.width - cellSize * 10) / 2
+        let offsetY = (size.height - cellSize * 20) / 2
+
+        return ForEach(Array(viewModel.lineClearRows), id: \.self) { row in
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.orange.opacity(1 - lineClearProgress),
+                            Color.red.opacity(0.7 * (1 - lineClearProgress)),
+                            Color.black.opacity(0.6 * lineClearProgress)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: cellSize * 10, height: cellSize)
+                .position(
+                    x: offsetX + cellSize * 5,
+                    y: offsetY + cellSize * CGFloat(row) + cellSize / 2
+                )
         }
     }
 

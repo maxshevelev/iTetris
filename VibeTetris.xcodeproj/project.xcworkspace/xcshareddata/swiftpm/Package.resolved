@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/maxshevelev/TetrisCore.git",
       "state" : {
-        "branch" : "experiment/drop-timer-rhythm",
-        "revision" : "05f86c50047746a306ab72b2a55a620ce01348c3"
+        "branch" : "feature/line-clear-animation-hint",
+        "revision" : "43bee0347c92ba9010e73f3394da606376d62e1f"
       }
     }
   ],

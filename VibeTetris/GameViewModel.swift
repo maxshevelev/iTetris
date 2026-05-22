@@ -16,6 +16,9 @@ final class GameViewModel {
     var hardDropDeltaY: Int = 0
     var hardDropAnimDuration: TimeInterval = 0
     var isHardDropping = false
+    var lineClearRows: Set<Int> = []
+    var lineClearAnimDuration: TimeInterval = 0
+    var lineClearTrigger = 0
 
     private let controller: GameController
     private var tickTask: Task<Void, Never>?
@@ -63,7 +66,13 @@ final class GameViewModel {
             case .nextPieceBlocks(let v): nextPieceBlocks = v
             case .score(let v): score = v
             case .level(let v): level = v
-            case .linesCleared(let v): linesCleared = v
+            case .linesCleared(let v, let clearedRows, let animationDuration):
+                linesCleared = v
+                if !clearedRows.isEmpty {
+                    lineClearRows = clearedRows
+                    lineClearAnimDuration = animationDuration
+                    lineClearTrigger &+= 1
+                }
             case .state(let v): displayState = v
             case .topScores(let v): topScores = v
             case .playerName(let v): playerName = v
