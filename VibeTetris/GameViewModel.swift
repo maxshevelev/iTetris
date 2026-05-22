@@ -1,11 +1,6 @@
 import SwiftUI
 import TetrisCore
 
-struct HardDropAnimation: Equatable {
-    var deltaY: Int
-    var duration: TimeInterval
-}
-
 @Observable
 final class GameViewModel {
     var grid: [[BlockState]] = []
@@ -18,11 +13,14 @@ final class GameViewModel {
     var topScores: [StoredScore] = []
     var playerName: String = ""
     var hardDropTrigger = 0
-    var hardDropAnimation: HardDropAnimation?
+    var hardDropDeltaY: Int = 0
+    var hardDropAnimProgress: CGFloat = 0
+    var isHardDropping = false
 
     private let controller: GameController
     private var tickTask: Task<Void, Never>?
     private var previousPieceMinY: Int?
+    private var hardDropAnimTask: Task<Void, Never>?
 
     init() {
         controller = GameController(isHardDropAnimated: true)
@@ -54,11 +52,25 @@ final class GameViewModel {
                    let prev = previousPieceMinY,
                    let cur = v.map(\.y).min(),
                    cur - prev > 1 {
-                    print("[VM] Hard drop: prevY=\(prev) curY=\(cur) delta=\(cur-prev) duration=\(duration)")
                     hardDropTrigger &+= 1
-                    hardDropAnimation = HardDropAnimation(deltaY: cur - prev, duration: duration)
+                    hardDropDeltaY = cur - prev
+                    hardDropAnimProgress = 0
+                    isHardDropping = true
+                    hardDropAnimTask?.cancel()
+                    hardDropAnimTask = Task { @MainActor in
+                        let start = Date()
+                        var step: CGFloat = 0
+                        while step < 1 {
+                            let elapsed = Date().timeIntervalSince(start)
+                            step = CGFloat(elapsed / duration)
+                            hardDropAnimProgress = step
+                            try? await Task.sleep(for: .milliseconds(16))
+                        }
+                        hardDropAnimProgress = 1.0
+                        isHardDropping = false
+                    }
                 } else if hardDropDuration == nil {
-                    hardDropAnimation = nil
+                    isHardDropping = false
                 }
                 previousPieceMinY = v.map(\.y).min() ?? previousPieceMinY
                 pieceBlocks = v
