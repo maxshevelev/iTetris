@@ -75,13 +75,15 @@ struct ContentView: View {
         .onChange(of: viewModel.isHardDropping) {
             if viewModel.isHardDropping {
                 hardDropProgress = 0
-                withAnimation(.easeIn(duration: viewModel.hardDropAnimDuration)) {
-                    hardDropProgress = 1.0
+                DispatchQueue.main.async {
+                    withAnimation(.easeIn(duration: viewModel.hardDropAnimDuration)) {
+                        hardDropProgress = 1.0
+                    }
                 }
             }
         }
         .onChange(of: hardDropProgress) {
-            if hardDropProgress == 1.0 {
+            if hardDropProgress >= 1.0 {
                 hardDropFlash = true
                 Task {
                     try? await Task.sleep(for: .milliseconds(80))
