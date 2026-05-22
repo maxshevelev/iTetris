@@ -265,7 +265,7 @@
 			repositoryURL = "https://github.com/maxshevelev/TetrisCore.git";
 			requirement = {
 				kind = branch;
-				branch = main;
+				branch = feature/hard-drop-animation;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

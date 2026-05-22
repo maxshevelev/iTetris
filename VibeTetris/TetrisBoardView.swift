@@ -4,6 +4,7 @@ import TetrisCore
 struct TetrisBoardView: View {
     let grid: [[BlockState]]
     let pieceBlocks: [PieceBlock]
+    let hardDropAnimation: HardDropAnimation?
     let gridWidth = 10
     let gridHeight = 20
 
@@ -54,12 +55,19 @@ struct TetrisBoardView: View {
                     x: cellSize * 0.06,
                     y: cellSize * 0.1
                 ))
+                let yOffset: CGFloat
+                if let anim = hardDropAnimation {
+                    yOffset = CGFloat(anim.deltaY) * (1 - anim.progress) * cellSize
+                } else {
+                    yOffset = 0
+                }
                 for block in pieceBlocks {
                     guard block.y >= 0, block.x >= 0,
                           block.x < gridWidth, block.y < gridHeight else { continue }
+                    let displayY = CGFloat(block.y) * cellSize - yOffset
                     let rect = CGRect(
                         x: offsetX + CGFloat(block.x) * cellSize,
-                        y: offsetY + CGFloat(block.y) * cellSize,
+                        y: offsetY + displayY,
                         width: cellSize,
                         height: cellSize
                     )

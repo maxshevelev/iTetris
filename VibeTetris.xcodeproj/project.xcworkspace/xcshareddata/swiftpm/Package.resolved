@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/maxshevelev/TetrisCore.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "87fc2e19dc7986a7fa11ee0f23ee80ada59d6c18"
+        "branch" : "feature/hard-drop-animation",
+        "revision" : "ff3e237bb3c9c4493b7d892ab1204ac31a6899f2"
       }
     }
   ],

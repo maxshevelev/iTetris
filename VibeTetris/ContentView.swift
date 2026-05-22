@@ -7,9 +7,7 @@ import AppKit
 struct ContentView: View {
     @State private var viewModel = GameViewModel()
     @State private var hardDropFlash = false
-    #if os(macOS)
-    @State private var keyMonitor: Any?
-    #endif
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         ZStack {
@@ -20,7 +18,8 @@ struct ContentView: View {
 
                 TetrisBoardView(
                     grid: viewModel.grid,
-                    pieceBlocks: viewModel.pieceBlocks
+                    pieceBlocks: viewModel.pieceBlocks,
+                    hardDropAnimation: viewModel.hardDropAnimation
                 )
                 .frame(maxWidth: 360, maxHeight: .infinity)
                 .padding(.vertical, 8)
@@ -30,6 +29,7 @@ struct ContentView: View {
                 .overlay(
                     Rectangle()
                         .fill(.white.opacity(hardDropFlash ? 0.35 : 0))
+                        .animation(.easeOut(duration: 0.25), value: hardDropFlash)
                         .allowsHitTesting(false)
                 )
 
@@ -40,6 +40,7 @@ struct ContentView: View {
                     nextPieceBlocks: viewModel.nextPieceBlocks
                 )
                 .frame(width: 160)
+                .padding(.top, 8)
 
                 Spacer(minLength: 0)
             }
@@ -52,26 +53,21 @@ struct ContentView: View {
                 gameOverOverlay
             }
         }
+        .focused($isFocused)
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(action: handleKeyPress)
         .onAppear {
             viewModel.start()
             #if os(macOS)
             NSApp.activate(ignoringOtherApps: true)
-            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                handleKeyEvent(event)
-                return nil
-            }
             #endif
-        }
-        .onDisappear {
-            #if os(macOS)
-            if let monitor = keyMonitor {
-                NSEvent.removeMonitor(monitor)
-            }
-            #endif
+            isFocused = true
         }
         .onChange(of: viewModel.hardDropTrigger) {
             hardDropFlash = true
-            withAnimation(.easeOut(duration: 0.25)) {
+            Task {
+                try? await Task.sleep(for: .milliseconds(80))
                 hardDropFlash = false
             }
         }
@@ -163,20 +159,19 @@ struct ContentView: View {
 
     // MARK: - Keyboard (macOS)
 
-    #if os(macOS)
-    private func handleKeyEvent(_ event: NSEvent) {
-        switch Int(event.keyCode) {
-        case 38: viewModel.moveLeft()                    // j
-        case 37: viewModel.moveRight()                   // l
-        case 40: viewModel.rotate()                      // k
-        case 49:                                         // space
+    private func handleKeyPress(_ press: KeyPress) -> KeyPress.Result {
+        switch press.key {
+        case .init("j"): viewModel.moveLeft()
+        case .init("l"): viewModel.moveRight()
+        case .init("k"): viewModel.rotate()
+        case .space:
             if viewModel.displayState == .paused { viewModel.resume() }
             else { viewModel.hardDrop() }
-        case 53: viewModel.pause()                       // escape
-        default: break
+        case .escape: viewModel.pause()
+        default: return .ignored
         }
+        return .handled
     }
-    #endif
 }
 
 #Preview {

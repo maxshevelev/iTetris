@@ -1,6 +1,12 @@
 import SwiftUI
 import TetrisCore
 
+struct HardDropAnimation: Equatable {
+    var deltaY: Int
+    var progress: CGFloat = 0
+    var duration: TimeInterval
+}
+
 @Observable
 final class GameViewModel {
     var grid: [[BlockState]] = []
@@ -13,14 +19,15 @@ final class GameViewModel {
     var topScores: [StoredScore] = []
     var playerName: String = ""
     var hardDropTrigger = 0
+    var hardDropAnimation: HardDropAnimation?
 
     private let controller: GameController
     private var tickTask: Task<Void, Never>?
     private var previousPieceMinY: Int?
 
     init() {
-        controller = GameController()
-        tickTask = Task {
+        controller = GameController(isHardDropAnimated: true)
+        tickTask = Task { @MainActor in
             for await events in controller.tick {
                 apply(events)
             }
@@ -43,12 +50,23 @@ final class GameViewModel {
         for event in events {
             switch event {
             case .grid(let v): grid = v
-            case .pieceBlocks(let v):
-                let newMinY = v.map(\.y).min()
-                if let prev = previousPieceMinY, let cur = newMinY, cur - prev > 1 {
+            case .pieceBlocks(let v, let hardDropDuration):
+                if let duration = hardDropDuration,
+                   let prev = previousPieceMinY,
+                   let cur = v.map(\.y).min(),
+                   cur - prev > 1 {
                     hardDropTrigger &+= 1
+                    let anim = HardDropAnimation(deltaY: cur - prev, duration: duration)
+                    hardDropAnimation = anim
+                    withAnimation(.easeIn(duration: duration)) {
+                        hardDropAnimation?.progress = 1.0
+                    }
+                    Task {
+                        try? await Task.sleep(for: .seconds(duration + 0.05))
+                        hardDropAnimation = nil
+                    }
                 }
-                previousPieceMinY = newMinY
+                previousPieceMinY = v.map(\.y).min() ?? previousPieceMinY
                 pieceBlocks = v
             case .nextPieceBlocks(let v): nextPieceBlocks = v
             case .score(let v): score = v
