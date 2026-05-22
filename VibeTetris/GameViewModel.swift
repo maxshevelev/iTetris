@@ -14,13 +14,12 @@ final class GameViewModel {
     var playerName: String = ""
     var hardDropTrigger = 0
     var hardDropDeltaY: Int = 0
-    var hardDropAnimProgress: CGFloat = 0
+    var hardDropAnimDuration: TimeInterval = 0
     var isHardDropping = false
 
     private let controller: GameController
     private var tickTask: Task<Void, Never>?
     private var previousPieceMinY: Int?
-    private var hardDropAnimTask: Task<Void, Never>?
 
     init() {
         controller = GameController(isHardDropAnimated: true)
@@ -54,21 +53,8 @@ final class GameViewModel {
                    cur - prev > 1 {
                     hardDropTrigger &+= 1
                     hardDropDeltaY = cur - prev
-                    hardDropAnimProgress = 0
+                    hardDropAnimDuration = duration
                     isHardDropping = true
-                    hardDropAnimTask?.cancel()
-                    hardDropAnimTask = Task { @MainActor in
-                        let start = Date()
-                        var step: CGFloat = 0
-                        while step < 1 {
-                            let elapsed = Date().timeIntervalSince(start)
-                            step = CGFloat(elapsed / duration)
-                            hardDropAnimProgress = step
-                            try? await Task.sleep(for: .milliseconds(16))
-                        }
-                        hardDropAnimProgress = 1.0
-                        isHardDropping = false
-                    }
                 } else if hardDropDuration == nil {
                     isHardDropping = false
                 }

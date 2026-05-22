@@ -7,6 +7,8 @@ import AppKit
 struct ContentView: View {
     @State private var viewModel = GameViewModel()
     @State private var hardDropFlash = false
+    @State private var hardDropProgress: CGFloat = 0
+    @State private var boardSize: CGSize = .zero
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -19,8 +21,6 @@ struct ContentView: View {
                 TetrisBoardView(
                     grid: viewModel.grid,
                     pieceBlocks: viewModel.pieceBlocks,
-                    hardDropDeltaY: viewModel.hardDropDeltaY,
-                    hardDropProgress: viewModel.hardDropAnimProgress,
                     isHardDropping: viewModel.isHardDropping
                 )
                 .frame(maxWidth: 360, maxHeight: .infinity)
@@ -33,6 +33,17 @@ struct ContentView: View {
                         .fill(.white.opacity(hardDropFlash ? 0.35 : 0))
                         .animation(.easeOut(duration: 0.25), value: hardDropFlash)
                         .allowsHitTesting(false)
+                )
+                .overlay {
+                    if viewModel.isHardDropping {
+                        hardDropPieceOverlay
+                    }
+                }
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.onAppear { boardSize = geo.size }
+                            .onChange(of: geo.size) { boardSize = geo.size }
+                    }
                 )
 
                 InfoPanelView(
@@ -66,12 +77,44 @@ struct ContentView: View {
             #endif
             isFocused = true
         }
+        .onChange(of: viewModel.isHardDropping) {
+            if viewModel.isHardDropping {
+                hardDropProgress = 0
+                withAnimation(.easeIn(duration: viewModel.hardDropAnimDuration)) {
+                    hardDropProgress = 1.0
+                }
+            }
+        }
         .onChange(of: viewModel.hardDropTrigger) {
             hardDropFlash = true
             Task {
                 try? await Task.sleep(for: .milliseconds(80))
                 hardDropFlash = false
             }
+        }
+    }
+
+    // MARK: - Hard Drop Overlay
+
+    private var hardDropPieceOverlay: some View {
+        let gridW = 10
+        let gridH = 20
+        let cellW = boardSize.width / CGFloat(gridW)
+        let cellH = boardSize.height / CGFloat(gridH)
+        let cellSize = min(cellW, cellH)
+        let ox = (boardSize.width - cellSize * CGFloat(gridW)) / 2
+        let oy = (boardSize.height - cellSize * CGFloat(gridH)) / 2
+        let yOffset = CGFloat(viewModel.hardDropDeltaY) * (1 - hardDropProgress) * cellSize
+        let inset = cellSize * 0.08
+        let blockSize = cellSize - inset * 2
+
+        return ForEach(viewModel.pieceBlocks, id: \.self) { block in
+            let bx = ox + CGFloat(block.x) * cellSize + inset
+            let by = oy + CGFloat(block.y) * cellSize + inset - yOffset
+            RoundedRectangle(cornerRadius: 2)
+                .fill(block.color.swiftUIColor)
+                .frame(width: blockSize, height: blockSize)
+                .position(x: bx + blockSize / 2, y: by + blockSize / 2)
         }
     }
 
