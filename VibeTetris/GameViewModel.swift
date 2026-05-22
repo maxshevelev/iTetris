@@ -3,7 +3,6 @@ import TetrisCore
 
 struct HardDropAnimation: Equatable {
     var deltaY: Int
-    var progress: CGFloat = 0
     var duration: TimeInterval
 }
 
@@ -56,15 +55,9 @@ final class GameViewModel {
                    let cur = v.map(\.y).min(),
                    cur - prev > 1 {
                     hardDropTrigger &+= 1
-                    let anim = HardDropAnimation(deltaY: cur - prev, duration: duration)
-                    hardDropAnimation = anim
-                    withAnimation(.easeIn(duration: duration)) {
-                        hardDropAnimation?.progress = 1.0
-                    }
-                    Task {
-                        try? await Task.sleep(for: .seconds(duration + 0.05))
-                        hardDropAnimation = nil
-                    }
+                    hardDropAnimation = HardDropAnimation(deltaY: cur - prev, duration: duration)
+                } else if hardDropDuration == nil {
+                    hardDropAnimation = nil
                 }
                 previousPieceMinY = v.map(\.y).min() ?? previousPieceMinY
                 pieceBlocks = v

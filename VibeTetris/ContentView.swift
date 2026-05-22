@@ -7,6 +7,7 @@ import AppKit
 struct ContentView: View {
     @State private var viewModel = GameViewModel()
     @State private var hardDropFlash = false
+    @State private var hardDropProgress: CGFloat = 0
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -19,7 +20,8 @@ struct ContentView: View {
                 TetrisBoardView(
                     grid: viewModel.grid,
                     pieceBlocks: viewModel.pieceBlocks,
-                    hardDropAnimation: viewModel.hardDropAnimation
+                    hardDropAnimation: viewModel.hardDropAnimation,
+                    hardDropProgress: hardDropProgress
                 )
                 .frame(maxWidth: 360, maxHeight: .infinity)
                 .padding(.vertical, 8)
@@ -63,6 +65,14 @@ struct ContentView: View {
             NSApp.activate(ignoringOtherApps: true)
             #endif
             isFocused = true
+        }
+        .onChange(of: viewModel.hardDropAnimation) {
+            if let anim = viewModel.hardDropAnimation {
+                hardDropProgress = 0
+                withAnimation(.easeIn(duration: anim.duration)) {
+                    hardDropProgress = 1.0
+                }
+            }
         }
         .onChange(of: viewModel.hardDropTrigger) {
             hardDropFlash = true

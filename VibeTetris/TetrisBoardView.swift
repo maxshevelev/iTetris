@@ -5,6 +5,7 @@ struct TetrisBoardView: View {
     let grid: [[BlockState]]
     let pieceBlocks: [PieceBlock]
     let hardDropAnimation: HardDropAnimation?
+    let hardDropProgress: CGFloat
     let gridWidth = 10
     let gridHeight = 20
 
@@ -57,7 +58,7 @@ struct TetrisBoardView: View {
                 ))
                 let yOffset: CGFloat
                 if let anim = hardDropAnimation {
-                    yOffset = CGFloat(anim.deltaY) * (1 - anim.progress) * cellSize
+                    yOffset = CGFloat(anim.deltaY) * (1 - hardDropProgress) * cellSize
                 } else {
                     yOffset = 0
                 }
