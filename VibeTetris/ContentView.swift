@@ -179,14 +179,13 @@ struct ContentView: View {
                 }
 
                 if !viewModel.topScores.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(spacing: 4) {
                         Text("TOP SCORES")
                             .font(.headline)
                             .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.top, 8)
                         ForEach(viewModel.topScores.prefix(5), id: \.self) { entry in
-                            HStack {
+                            HStack(spacing: 8) {
                                 Text(entry.playerName)
                                     .lineLimit(1)
                                 Spacer()
