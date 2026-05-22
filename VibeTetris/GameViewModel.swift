@@ -54,6 +54,7 @@ final class GameViewModel {
                    let prev = previousPieceMinY,
                    let cur = v.map(\.y).min(),
                    cur - prev > 1 {
+                    print("[VM] Hard drop: prevY=\(prev) curY=\(cur) delta=\(cur-prev) duration=\(duration)")
                     hardDropTrigger &+= 1
                     hardDropAnimation = HardDropAnimation(deltaY: cur - prev, duration: duration)
                 } else if hardDropDuration == nil {
