@@ -81,11 +81,11 @@ struct ContentView: View {
             }
             let duration = viewModel.hardDropAnimDuration
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(duration))
-                isAnimatingHardDrop = false
+                try? await Task.sleep(for: .seconds(duration + 0.05))
                 hardDropFlash = true
                 try? await Task.sleep(for: .milliseconds(80))
                 hardDropFlash = false
+                isAnimatingHardDrop = false
             }
         }
     }
