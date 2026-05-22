@@ -21,20 +21,13 @@ struct ContentView: View {
                 TetrisBoardView(
                     grid: viewModel.grid,
                     pieceBlocks: viewModel.pieceBlocks,
-                    isHardDropping: isAnimatingHardDrop || viewModel.isHardDropping
+                    isHardDropping: isAnimatingHardDrop
                 )
                 .frame(maxWidth: 360, maxHeight: .infinity)
                 .overlay {
-                    ZStack {
-                        Rectangle()
-                            .fill(.white.opacity(hardDropFlash ? 0.35 : 0))
-                            .animation(.easeOut(duration: 0.25), value: hardDropFlash)
-                            .allowsHitTesting(false)
-
-                        if isAnimatingHardDrop {
-                            GeometryReader { geo in
-                                hardDropPieceView(size: geo.size)
-                            }
+                    if isAnimatingHardDrop {
+                        GeometryReader { geo in
+                            hardDropPieceView(size: geo.size)
                         }
                     }
                 }
@@ -42,6 +35,12 @@ struct ContentView: View {
                 .gesture(swipeGesture)
                 .simultaneousGesture(rotateTap)
                 .simultaneousGesture(pauseLongPress)
+                .overlay {
+                    Rectangle()
+                        .fill(.white.opacity(hardDropFlash ? 0.35 : 0))
+                        .animation(.easeOut(duration: 0.25), value: hardDropFlash)
+                        .allowsHitTesting(false)
+                }
 
                 InfoPanelView(
                     score: viewModel.score,
@@ -77,16 +76,18 @@ struct ContentView: View {
         .onChange(of: viewModel.hardDropTrigger) {
             isAnimatingHardDrop = true
             hardDropProgress = 0
-            withAnimation(.easeIn(duration: viewModel.hardDropAnimDuration)) {
-                hardDropProgress = 1.0
-            }
             let duration = viewModel.hardDropAnimDuration
+            DispatchQueue.main.async {
+                withAnimation(.easeIn(duration: duration)) {
+                    hardDropProgress = 1.0
+                }
+            }
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(duration + 0.05))
+                isAnimatingHardDrop = false
                 hardDropFlash = true
                 try? await Task.sleep(for: .milliseconds(80))
                 hardDropFlash = false
-                isAnimatingHardDrop = false
             }
         }
     }
