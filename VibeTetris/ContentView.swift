@@ -8,7 +8,6 @@ struct ContentView: View {
     @State private var viewModel = GameViewModel()
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
-    @State private var boardSize: CGSize = .zero
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -36,15 +35,11 @@ struct ContentView: View {
                 )
                 .overlay {
                     if viewModel.isHardDropping {
-                        hardDropPieceOverlay
+                        GeometryReader { geo in
+                            hardDropPieceView(size: geo.size)
+                        }
                     }
                 }
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.onAppear { boardSize = geo.size }
-                            .onChange(of: geo.size) { boardSize = geo.size }
-                    }
-                )
 
                 InfoPanelView(
                     score: viewModel.score,
@@ -96,26 +91,31 @@ struct ContentView: View {
 
     // MARK: - Hard Drop Overlay
 
-    private var hardDropPieceOverlay: some View {
-        let gridW = 10
-        let gridH = 20
-        let cellW = boardSize.width / CGFloat(gridW)
-        let cellH = boardSize.height / CGFloat(gridH)
-        let cellSize = min(cellW, cellH)
-        let ox = (boardSize.width - cellSize * CGFloat(gridW)) / 2
-        let oy = (boardSize.height - cellSize * CGFloat(gridH)) / 2
-        let yOffset = CGFloat(viewModel.hardDropDeltaY) * (1 - hardDropProgress) * cellSize
+    private func hardDropPieceView(size: CGSize) -> some View {
+        let cellSize = min(size.width / 10, size.height / 20)
+        let blockSize = cellSize * 0.84
         let inset = cellSize * 0.08
-        let blockSize = cellSize - inset * 2
+        let ox = (size.width - cellSize * 10) / 2
+        let oy = (size.height - cellSize * 20) / 2
 
-        return ForEach(viewModel.pieceBlocks, id: \.self) { block in
-            let bx = ox + CGFloat(block.x) * cellSize + inset
-            let by = oy + CGFloat(block.y) * cellSize + inset - yOffset
-            RoundedRectangle(cornerRadius: 2)
-                .fill(block.color.swiftUIColor)
-                .frame(width: blockSize, height: blockSize)
-                .position(x: bx + blockSize / 2, y: by + blockSize / 2)
+        let blocks = viewModel.pieceBlocks
+        let minX = blocks.map(\.x).min() ?? 0
+        let minY = blocks.map(\.y).min() ?? 0
+        let yOffset = CGFloat(viewModel.hardDropDeltaY) * (1 - hardDropProgress) * cellSize
+
+        return ZStack {
+            ForEach(blocks, id: \.self) { block in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(block.color.swiftUIColor)
+                    .frame(width: blockSize, height: blockSize)
+                    .offset(x: CGFloat(block.x - minX) * cellSize,
+                            y: CGFloat(block.y - minY) * cellSize)
+            }
         }
+        .position(
+            x: ox + CGFloat(minX) * cellSize + inset + blockSize / 2,
+            y: oy + CGFloat(minY) * cellSize + inset + blockSize / 2 - yOffset
+        )
     }
 
     // MARK: - Gestures
