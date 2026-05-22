@@ -78,13 +78,12 @@ struct ContentView: View {
                 withAnimation(.easeIn(duration: viewModel.hardDropAnimDuration)) {
                     hardDropProgress = 1.0
                 }
-            }
-        }
-        .onChange(of: viewModel.hardDropTrigger) {
-            hardDropFlash = true
-            Task {
-                try? await Task.sleep(for: .milliseconds(80))
-                hardDropFlash = false
+                Task {
+                    try? await Task.sleep(for: .seconds(viewModel.hardDropAnimDuration + 0.05))
+                    hardDropFlash = true
+                    try? await Task.sleep(for: .milliseconds(80))
+                    hardDropFlash = false
+                }
             }
         }
     }
