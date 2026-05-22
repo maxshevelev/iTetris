@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var viewModel = GameViewModel()
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
+    @State private var isAnimatingHardDrop = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -20,11 +21,11 @@ struct ContentView: View {
                 TetrisBoardView(
                     grid: viewModel.grid,
                     pieceBlocks: viewModel.pieceBlocks,
-                    isHardDropping: viewModel.isHardDropping
+                    isHardDropping: isAnimatingHardDrop || viewModel.isHardDropping
                 )
                 .frame(maxWidth: 360, maxHeight: .infinity)
                 .overlay {
-                    if viewModel.isHardDropping {
+                    if isAnimatingHardDrop {
                         GeometryReader { geo in
                             hardDropPieceView(size: geo.size)
                         }
@@ -72,23 +73,19 @@ struct ContentView: View {
             #endif
             isFocused = true
         }
-        .onChange(of: viewModel.isHardDropping) {
-            if viewModel.isHardDropping {
-                hardDropProgress = 0
-                DispatchQueue.main.async {
-                    withAnimation(.easeIn(duration: viewModel.hardDropAnimDuration)) {
-                        hardDropProgress = 1.0
-                    }
-                }
+        .onChange(of: viewModel.hardDropTrigger) {
+            isAnimatingHardDrop = true
+            hardDropProgress = 0
+            withAnimation(.easeIn(duration: viewModel.hardDropAnimDuration)) {
+                hardDropProgress = 1.0
             }
-        }
-        .onChange(of: hardDropProgress) {
-            if hardDropProgress >= 1.0 {
+            let duration = viewModel.hardDropAnimDuration
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(duration))
+                isAnimatingHardDrop = false
                 hardDropFlash = true
-                Task {
-                    try? await Task.sleep(for: .milliseconds(80))
-                    hardDropFlash = false
-                }
+                try? await Task.sleep(for: .milliseconds(80))
+                hardDropFlash = false
             }
         }
     }
