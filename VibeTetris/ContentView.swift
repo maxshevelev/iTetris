@@ -171,15 +171,16 @@ struct ContentView: View {
 
                 VStack(spacing: 4) {
                     Text("Score: \(viewModel.score)")
-                        .font(.title2)
+                        .font(.title)
                     Text("Level: \(viewModel.level)  Lines: \(viewModel.linesCleared)")
+                        .font(.title3)
                         .foregroundStyle(.secondary)
                 }
 
                 if !viewModel.topScores.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("TOP SCORES")
-                            .font(.subheadline)
+                            .font(.headline)
                             .foregroundStyle(.secondary)
                             .padding(.top, 8)
                         ForEach(viewModel.topScores.prefix(5), id: \.self) { entry in
@@ -190,7 +191,7 @@ struct ContentView: View {
                                 Text("\(entry.score)")
                                     .monospacedDigit()
                             }
-                            .font(.subheadline)
+                            .font(.title3)
                             .frame(width: 200)
                         }
                     }
