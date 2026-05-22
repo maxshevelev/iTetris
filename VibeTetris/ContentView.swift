@@ -23,6 +23,13 @@ struct ContentView: View {
                     isHardDropping: viewModel.isHardDropping
                 )
                 .frame(maxWidth: 360, maxHeight: .infinity)
+                .overlay {
+                    if viewModel.isHardDropping {
+                        GeometryReader { geo in
+                            hardDropPieceView(size: geo.size)
+                        }
+                    }
+                }
                 .padding(.vertical, 8)
                 .gesture(swipeGesture)
                 .simultaneousGesture(rotateTap)
@@ -33,13 +40,6 @@ struct ContentView: View {
                         .animation(.easeOut(duration: 0.25), value: hardDropFlash)
                         .allowsHitTesting(false)
                 )
-                .overlay {
-                    if viewModel.isHardDropping {
-                        GeometryReader { geo in
-                            hardDropPieceView(size: geo.size)
-                        }
-                    }
-                }
 
                 InfoPanelView(
                     score: viewModel.score,
