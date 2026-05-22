@@ -182,6 +182,7 @@ struct ContentView: View {
                         Text("TOP SCORES")
                             .font(.headline)
                             .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.top, 8)
                         ForEach(viewModel.topScores.prefix(5), id: \.self) { entry in
                             HStack {
