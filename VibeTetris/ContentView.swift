@@ -25,9 +25,16 @@ struct ContentView: View {
                 )
                 .frame(maxWidth: 360, maxHeight: .infinity)
                 .overlay {
-                    if isAnimatingHardDrop {
-                        GeometryReader { geo in
-                            hardDropPieceView(size: geo.size)
+                    ZStack {
+                        Rectangle()
+                            .fill(.white.opacity(hardDropFlash ? 0.35 : 0))
+                            .animation(.easeOut(duration: 0.25), value: hardDropFlash)
+                            .allowsHitTesting(false)
+
+                        if isAnimatingHardDrop {
+                            GeometryReader { geo in
+                                hardDropPieceView(size: geo.size)
+                            }
                         }
                     }
                 }
@@ -35,12 +42,6 @@ struct ContentView: View {
                 .gesture(swipeGesture)
                 .simultaneousGesture(rotateTap)
                 .simultaneousGesture(pauseLongPress)
-                .overlay(
-                    Rectangle()
-                        .fill(.white.opacity(hardDropFlash ? 0.35 : 0))
-                        .animation(.easeOut(duration: 0.25), value: hardDropFlash)
-                        .allowsHitTesting(false)
-                )
 
                 InfoPanelView(
                     score: viewModel.score,
