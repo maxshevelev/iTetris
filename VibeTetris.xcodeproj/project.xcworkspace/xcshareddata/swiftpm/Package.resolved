@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/maxshevelev/TetrisCore.git",
       "state" : {
-        "branch" : "feature/hard-drop-animation",
-        "revision" : "4e2a3bbdb202d1fa841969a232a8497bea78b4bd"
+        "branch" : "experiment/drop-timer-rhythm",
+        "revision" : "05f86c50047746a306ab72b2a55a620ce01348c3"
       }
     }
   ],
