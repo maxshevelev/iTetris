@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F4988F4F2FC2257F00B082ED /* TetrisCore in Frameworks */ = {isa = PBXBuildFile; productRef = F4988F4E2FC2257F00B082ED /* TetrisCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		945C603B2FBEF5530076240F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4988F4F2FC2257F00B082ED /* TetrisCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,7 +117,7 @@
 			);
 			name = VibeTetris;
 			packageProductDependencies = (
-				945C61020000000000000002 /* TetrisCore */,
+				F4988F4E2FC2257F00B082ED /* TetrisCore */,
 			);
 			productName = VibeTetris;
 			productReference = 945C602D2FBEF5500076240F /* VibeTetris.app */;
@@ -197,7 +202,7 @@
 			mainGroup = 945C60242FBEF54F0076240F;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				945C61010000000000000001 /* XCRemoteSwiftPackageReference "TetrisCore" */,
+				F4988F4D2FC2257F00B082ED /* XCRemoteSwiftPackageReference "TetrisCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 945C602E2FBEF5500076240F /* Products */;
@@ -258,25 +263,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		945C61010000000000000001 /* XCRemoteSwiftPackageReference "TetrisCore" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/maxshevelev/TetrisCore.git";
-			requirement = {
-				kind = branch;
-				branch = feature/line-clear-animation-hint;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		945C61020000000000000002 /* TetrisCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 945C61010000000000000001 /* XCRemoteSwiftPackageReference "TetrisCore" */;
-			productName = TetrisCore;
-		};
-/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXTargetDependency section */
 		945C603C2FBEF5530076240F /* PBXTargetDependency */ = {
@@ -628,6 +614,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F4988F4D2FC2257F00B082ED /* XCRemoteSwiftPackageReference "TetrisCore" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maxshevelev/TetrisCore";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F4988F4E2FC2257F00B082ED /* TetrisCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4988F4D2FC2257F00B082ED /* XCRemoteSwiftPackageReference "TetrisCore" */;
+			productName = TetrisCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 945C60252FBEF54F0076240F /* Project object */;
 }

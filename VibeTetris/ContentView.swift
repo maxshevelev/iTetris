@@ -5,7 +5,11 @@ import AppKit
 #endif
 
 struct ContentView: View {
-    @State private var viewModel = GameViewModel()
+    @State private var viewModel: GameViewModel
+
+    init(settings: ObservableSettings = ObservableSettings()) {
+        self._viewModel = State(initialValue: GameViewModel(settings: settings))
+    }
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
     @State private var isAnimatingHardDrop = false
@@ -21,7 +25,7 @@ struct ContentView: View {
                 Spacer(minLength: 0)
 
                 TetrisBoardView(
-                    grid: viewModel.grid,
+                    grid: isAnimatingLineClear ? (viewModel.lineClearGridSnapshot ?? viewModel.grid) : viewModel.grid,
                     pieceBlocks: viewModel.pieceBlocks,
                     isHardDropping: isAnimatingHardDrop
                 )
@@ -100,12 +104,15 @@ struct ContentView: View {
             isAnimatingLineClear = true
             lineClearProgress = 0
             let duration = viewModel.lineClearAnimDuration
-            withAnimation(.easeIn(duration: duration)) {
-                lineClearProgress = 1.0
+            DispatchQueue.main.async {
+                withAnimation(.easeIn(duration: duration)) {
+                    lineClearProgress = 1.0
+                }
             }
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(duration + 0.05))
                 isAnimatingLineClear = false
+                viewModel.lineClearGridSnapshot = nil
             }
         }
     }
@@ -116,25 +123,63 @@ struct ContentView: View {
         let cellSize = min(size.width / 10, size.height / 20)
         let offsetX = (size.width - cellSize * 10) / 2
         let offsetY = (size.height - cellSize * 20) / 2
+        let p = lineClearProgress
+        let cols = 10
 
         return ForEach(Array(viewModel.lineClearRows), id: \.self) { row in
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.orange.opacity(1 - lineClearProgress),
-                            Color.red.opacity(0.7 * (1 - lineClearProgress)),
-                            Color.black.opacity(0.6 * lineClearProgress)
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
+            ForEach(0..<cols, id: \.self) { col in
+                let dist = abs(CGFloat(col) - CGFloat(cols - 1) / 2) / (CGFloat(cols - 1) / 2)
+                let delay = dist * 0.2
+                let cp = max(0, min(1, (p - delay) / max(0.001, 1 - delay)))
+
+                cellBurst(cp: cp, cellSize: cellSize)
+                    .position(
+                        x: offsetX + cellSize * (CGFloat(col) + 0.5),
+                        y: offsetY + cellSize * (CGFloat(row) + 0.5)
                     )
-                )
-                .frame(width: cellSize * 10, height: cellSize)
-                .position(
-                    x: offsetX + cellSize * 5,
-                    y: offsetY + cellSize * CGFloat(row) + cellSize / 2
-                )
+            }
+        }
+    }
+
+    private func cellBurst(cp: CGFloat, cellSize: CGFloat) -> some View {
+        let flash: CGFloat = cp < 0.06 ? 1.0 : max(0, 1.0 - (cp - 0.06) / 0.15)
+        let glowScale: CGFloat = cp < 0.08 ? 0.6 : (cp < 0.35 ? 0.6 + 1.2 * (cp - 0.08) / 0.27 : max(0.1, 1.8 - 1.7 * (cp - 0.35) / 0.65))
+        let coreScale: CGFloat = cp < 0.5 ? 1.0 : max(0, 1.0 - (cp - 0.5) / 0.5)
+        let coreOpacity: CGFloat = cp < 0.4 ? 1.0 : max(0, 1.0 - (cp - 0.4) / 0.4)
+
+        return ZStack {
+            // Flash — bright white burst
+            Rectangle()
+                .fill(.white.opacity(flash))
+                .frame(width: cellSize, height: cellSize)
+
+            // Outer glow
+            Circle()
+                .fill(RadialGradient(
+                    gradient: Gradient(colors: [
+                        .orange,
+                        .red.opacity(0.5),
+                        .clear
+                    ]),
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: cellSize * glowScale
+                ))
+                .frame(width: cellSize * 2 * glowScale, height: cellSize * 2 * glowScale)
+
+            // Fire core
+            Rectangle()
+                .fill(LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 1, green: 0.95, blue: 0.6),
+                        Color(red: 1, green: 0.5, blue: 0),
+                        Color(red: 0.8, green: 0, blue: 0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                ))
+                .opacity(coreOpacity)
+                .frame(width: cellSize * coreScale, height: cellSize * coreScale)
         }
     }
 

@@ -19,13 +19,14 @@ final class GameViewModel {
     var lineClearRows: Set<Int> = []
     var lineClearAnimDuration: TimeInterval = 0
     var lineClearTrigger = 0
+    var lineClearGridSnapshot: [[BlockState]]?
 
     private let controller: GameController
     private var tickTask: Task<Void, Never>?
     private var previousPieceMinY: Int?
 
-    init() {
-        controller = GameController(isHardDropAnimated: true)
+    init(settings: ObservableSettings = ObservableSettings()) {
+        controller = GameController(settings: settings.raw)
         tickTask = Task { @MainActor in
             for await events in controller.tick {
                 apply(events)
@@ -46,6 +47,12 @@ final class GameViewModel {
     func stop() { Task { await controller.enqueue(.stop) } }
 
     private func apply(_ events: Set<GameEvent>) {
+        let hasLineClear = events.contains { event in
+            if case .linesCleared(_, let rows, _) = event { return !rows.isEmpty }
+            return false
+        }
+        if hasLineClear { lineClearGridSnapshot = grid }
+
         for event in events {
             switch event {
             case .grid(let v): grid = v

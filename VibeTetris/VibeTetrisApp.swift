@@ -9,13 +9,21 @@ struct VibeTetrisApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
 
+    @State private var settings = ObservableSettings()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(settings: settings)
         }
         #if os(macOS)
         .defaultSize(width: 480, height: 640)
         .windowResizability(.contentSize)
+        #endif
+
+        #if os(macOS)
+        Settings {
+            SettingsView(settings: settings)
+        }
         #endif
     }
 }

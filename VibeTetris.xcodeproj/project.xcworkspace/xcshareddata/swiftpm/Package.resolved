@@ -1,13 +1,13 @@
 {
-  "originHash" : "e908011d854e7283564620f8ca31d816042e4d34a166c2396d8a0eb025e9bd11",
+  "originHash" : "2540b6e033b393b7d1f79b4f0ca3a7d7a29796fd69880239039391c71b587414",
   "pins" : [
     {
       "identity" : "tetriscore",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/maxshevelev/TetrisCore.git",
+      "location" : "https://github.com/maxshevelev/TetrisCore",
       "state" : {
-        "branch" : "feature/line-clear-animation-hint",
-        "revision" : "43bee0347c92ba9010e73f3394da606376d62e1f"
+        "branch" : "main",
+        "revision" : "2a67b06843731b1fb4aea71dcbb0a57b8cdf31b6"
       }
     }
   ],
