@@ -3,3 +3,6 @@ build/
 *.xcuserdata
 DerivedData/
 *.xcworkspace/xcuserdata/
+VibeTetris.xcodeproj/project.xcworkspace/xcuserdata
+VibeTetris.xcodeproj/xcuserdata
+.claude/settings.local.json
