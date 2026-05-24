@@ -2,7 +2,8 @@ import SwiftUI
 import TetrisCore
 
 struct PiecePreviewView: View {
-    let blocks: [PieceBlock]
+    let blocks: Set<PieceCoordinate>
+    let color: TetrominoColor
     private let previewSize = 4
 
     var body: some View {
@@ -22,7 +23,7 @@ struct PiecePreviewView: View {
                 let inset = cellSize * 0.08
                 context.fill(
                     Path(rect.insetBy(dx: inset, dy: inset)),
-                    with: .color(block.color.swiftUIColor)
+                    with: .color(color.swiftUIColor)
                 )
             }
         }

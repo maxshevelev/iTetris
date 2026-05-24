@@ -27,7 +27,10 @@ struct ContentView: View {
                 TetrisBoardView(
                     grid: isAnimatingLineClear ? (viewModel.lineClearGridSnapshot ?? viewModel.grid) : viewModel.grid,
                     pieceBlocks: viewModel.pieceBlocks,
-                    isHardDropping: isAnimatingHardDrop
+                    pieceColor: viewModel.pieceColor,
+                    isHardDropping: isAnimatingHardDrop,
+                    gridWidth: viewModel.gridWidth,
+                    gridHeight: viewModel.gridHeight
                 )
                 .frame(maxWidth: 360, maxHeight: .infinity)
                 .overlay {
@@ -56,6 +59,7 @@ struct ContentView: View {
                     level: viewModel.level,
                     linesCleared: viewModel.linesCleared,
                     nextPieceBlocks: viewModel.nextPieceBlocks,
+                    nextPieceColor: viewModel.nextPieceColor,
                     onStop: { viewModel.stop() }
                 )
                 .frame(width: 160)
@@ -120,11 +124,13 @@ struct ContentView: View {
     // MARK: - Line Clear Burn Overlay
 
     private func lineClearBurnView(size: CGSize) -> some View {
-        let cellSize = min(size.width / 10, size.height / 20)
-        let offsetX = (size.width - cellSize * 10) / 2
-        let offsetY = (size.height - cellSize * 20) / 2
+        let gw = CGFloat(viewModel.gridWidth)
+        let gh = CGFloat(viewModel.gridHeight)
+        let cellSize = min(size.width / gw, size.height / gh)
+        let offsetX = (size.width - cellSize * gw) / 2
+        let offsetY = (size.height - cellSize * gh) / 2
         let p = lineClearProgress
-        let cols = 10
+        let cols = viewModel.gridWidth
 
         return ForEach(Array(viewModel.lineClearRows), id: \.self) { row in
             ForEach(0..<cols, id: \.self) { col in
@@ -186,13 +192,15 @@ struct ContentView: View {
     // MARK: - Hard Drop Overlay
 
     private func hardDropPieceView(size: CGSize) -> some View {
-        let cellSize = min(size.width / 10, size.height / 20)
+        let gw = CGFloat(viewModel.gridWidth)
+        let gh = CGFloat(viewModel.gridHeight)
+        let cellSize = min(size.width / gw, size.height / gh)
         let blockSize = cellSize * 0.84
         let inset = cellSize * 0.08
-        let ox = (size.width - cellSize * 10) / 2
-        let oy = (size.height - cellSize * 20) / 2
+        let ox = (size.width - cellSize * gw) / 2
+        let oy = (size.height - cellSize * gh) / 2
 
-        let blocks = viewModel.pieceBlocks
+        let blocks = Array(viewModel.pieceBlocks)
         let minX = blocks.map(\.x).min() ?? 0
         let minY = blocks.map(\.y).min() ?? 0
         let yOffset = CGFloat(viewModel.hardDropDeltaY) * (1 - hardDropProgress) * cellSize
@@ -200,7 +208,7 @@ struct ContentView: View {
         return ZStack {
             ForEach(blocks, id: \.self) { block in
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(block.color.swiftUIColor)
+                    .fill(viewModel.pieceColor.swiftUIColor)
                     .frame(width: blockSize, height: blockSize)
                     .offset(x: CGFloat(block.x - minX) * cellSize,
                             y: CGFloat(block.y - minY) * cellSize)

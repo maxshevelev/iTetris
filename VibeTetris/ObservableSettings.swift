@@ -21,6 +21,10 @@ final class ObservableSettings {
         get { raw.isLineClearAnimated }
         set { raw.isLineClearAnimated = newValue }
     }
+    var initialLevel: Int {
+        get { raw.initialLevel }
+        set { raw.initialLevel = newValue }
+    }
 
     init() {
         let settings = PersistentGameSettings()

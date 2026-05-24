@@ -6,6 +6,7 @@ struct SettingsView: View {
     @State private var lockImmediately: Bool
     @State private var hardDropAnimated: Bool
     @State private var lineClearAnimated: Bool
+    @State private var initialLevel: Int
 
     init(settings: ObservableSettings) {
         self.settings = settings
@@ -13,6 +14,7 @@ struct SettingsView: View {
         self._lockImmediately = State(initialValue: settings.lockImmediatelyAfterHardDrop)
         self._hardDropAnimated = State(initialValue: settings.isHardDropAnimated)
         self._lineClearAnimated = State(initialValue: settings.isLineClearAnimated)
+        self._initialLevel = State(initialValue: settings.initialLevel)
     }
 
     var body: some View {
@@ -20,12 +22,14 @@ struct SettingsView: View {
             generalTab
                 .tabItem { Label("General", systemImage: "gearshape") }
         }
-        .frame(width: 240, height: 260)
+        .frame(width: 320)
+        .frame(minHeight: 300)
         .onAppear {
             nameDraft = settings.playerName
             lockImmediately = settings.lockImmediatelyAfterHardDrop
             hardDropAnimated = settings.isHardDropAnimated
             lineClearAnimated = settings.isLineClearAnimated
+            initialLevel = settings.initialLevel
         }
         .onChange(of: nameDraft) { _, newValue in
             settings.playerName = newValue
@@ -39,6 +43,9 @@ struct SettingsView: View {
         .onChange(of: lineClearAnimated) { _, newValue in
             settings.isLineClearAnimated = newValue
         }
+        .onChange(of: initialLevel) { _, newValue in
+            settings.initialLevel = newValue
+        }
     }
 
     private var generalTab: some View {
@@ -47,7 +54,12 @@ struct SettingsView: View {
                 TextField("Name", text: $nameDraft)
             }
             Section("Gameplay") {
-                Toggle("Lock after hard drop", isOn: $lockImmediately)
+                Toggle("Immediate lock after hard drop", isOn: $lockImmediately)
+                Picker("Initial level", selection: $initialLevel) {
+                    ForEach(1...10, id: \.self) { level in
+                        Text("\(level)").tag(level)
+                    }
+                }
             }
             Section("Animations") {
                 Toggle("Animate hard drop", isOn: $hardDropAnimated)

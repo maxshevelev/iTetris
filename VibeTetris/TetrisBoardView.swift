@@ -2,11 +2,12 @@ import SwiftUI
 import TetrisCore
 
 struct TetrisBoardView: View {
-    let grid: [[BlockState]]
-    let pieceBlocks: [PieceBlock]
+    let grid: [PieceCoordinate: TetrominoColor]
+    let pieceBlocks: Set<PieceCoordinate>
+    let pieceColor: TetrominoColor
     let isHardDropping: Bool
-    let gridWidth = 10
-    let gridHeight = 20
+    let gridWidth: Int
+    let gridHeight: Int
 
     var body: some View {
         Canvas { context, size in
@@ -31,8 +32,7 @@ struct TetrisBoardView: View {
                         lineWidth: 0.5
                     )
 
-                    if y < grid.count, x < grid[y].count,
-                       case .filled(let color) = grid[y][x] {
+                    if let color = grid[PieceCoordinate(x: x, y: y)] {
                         let inset = cellSize * 0.08
                         context.fill(
                             Path(rect.insetBy(dx: inset, dy: inset)),
@@ -55,7 +55,7 @@ struct TetrisBoardView: View {
                     let inset = cellSize * 0.08
                     context.fill(
                         Path(rect.insetBy(dx: inset, dy: inset)),
-                        with: .color(block.color.swiftUIColor)
+                        with: .color(pieceColor.swiftUIColor)
                     )
                 }
             }

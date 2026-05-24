@@ -620,7 +620,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/maxshevelev/TetrisCore";
 			requirement = {
-				branch = main;
+				branch = "sparse-grid";
 				kind = branch;
 			};
 		};

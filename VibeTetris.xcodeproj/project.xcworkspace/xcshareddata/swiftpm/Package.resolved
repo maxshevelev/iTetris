@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/maxshevelev/TetrisCore",
       "state" : {
-        "branch" : "main",
-        "revision" : "2a67b06843731b1fb4aea71dcbb0a57b8cdf31b6"
+        "branch" : "sparse-grid",
+        "revision" : "6a289d44b9a20ac39da07990396761487c30216d"
       }
     }
   ],

@@ -5,7 +5,8 @@ struct InfoPanelView: View {
     let score: Int
     let level: Int
     let linesCleared: Int
-    let nextPieceBlocks: [PieceBlock]
+    let nextPieceBlocks: Set<PieceCoordinate>
+    let nextPieceColor: TetrominoColor
     var onStop: (() -> Void)?
 
     var body: some View {
@@ -38,7 +39,7 @@ struct InfoPanelView: View {
                 Text("NEXT")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                PiecePreviewView(blocks: nextPieceBlocks)
+                PiecePreviewView(blocks: nextPieceBlocks, color: nextPieceColor)
                     .aspectRatio(1, contentMode: .fit)
             }
 

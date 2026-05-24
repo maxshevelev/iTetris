@@ -3,9 +3,13 @@ import TetrisCore
 
 @Observable
 final class GameViewModel {
-    var grid: [[BlockState]] = []
-    var pieceBlocks: [PieceBlock] = []
-    var nextPieceBlocks: [PieceBlock] = []
+    var grid: [PieceCoordinate: TetrominoColor] = [:]
+    var gridWidth = 10
+    var gridHeight = 20
+    var pieceBlocks: Set<PieceCoordinate> = []
+    var pieceColor: TetrominoColor = .cyan
+    var nextPieceBlocks: Set<PieceCoordinate> = []
+    var nextPieceColor: TetrominoColor = .cyan
     var score = 0
     var level = 1
     var linesCleared = 0
@@ -19,7 +23,7 @@ final class GameViewModel {
     var lineClearRows: Set<Int> = []
     var lineClearAnimDuration: TimeInterval = 0
     var lineClearTrigger = 0
-    var lineClearGridSnapshot: [[BlockState]]?
+    var lineClearGridSnapshot: [PieceCoordinate: TetrominoColor]?
 
     private let controller: GameController
     private var tickTask: Task<Void, Never>?
@@ -55,8 +59,12 @@ final class GameViewModel {
 
         for event in events {
             switch event {
+            case .gridSize(let w, let h):
+                gridWidth = w
+                gridHeight = h
             case .grid(let v): grid = v
-            case .pieceBlocks(let v, let hardDropDuration):
+            case .pieceBlocks(let v, let color, let hardDropDuration):
+                pieceColor = color
                 if let duration = hardDropDuration,
                    let prev = previousPieceMinY,
                    let cur = v.map(\.y).min(),
@@ -70,7 +78,9 @@ final class GameViewModel {
                 }
                 previousPieceMinY = v.map(\.y).min() ?? previousPieceMinY
                 pieceBlocks = v
-            case .nextPieceBlocks(let v): nextPieceBlocks = v
+            case .nextPieceBlocks(let v, let color):
+                nextPieceColor = color
+                nextPieceBlocks = v
             case .score(let v): score = v
             case .level(let v): level = v
             case .linesCleared(let v, let clearedRows, let animationDuration):
