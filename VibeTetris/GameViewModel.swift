@@ -52,50 +52,93 @@ final class GameViewModel {
     func stop() { Task { await controller.enqueue(.stop) } }
 
     private func apply(_ events: Set<GameEvent>) {
-        let hasLineClear = events.contains { event in
-            if case .linesCleared(_, let rows, _) = event { return !rows.isEmpty }
-            return false
-        }
-        if hasLineClear { lineClearGridSnapshot = grid }
+        // Pass 1 — collect all event values without applying them.
+        // This decouples the application order from Set's undefined iteration order.
+        var gridSizeEvent: (w: Int, h: Int)?
+        var gridEvent: [PieceCoordinate: TetrominoColor]?
+        var pieceEvent: (blocks: Set<PieceCoordinate>, color: TetrominoColor, hardDropDuration: TimeInterval?)?
+        var nextPieceEvent: (blocks: Set<PieceCoordinate>, color: TetrominoColor)?
+        var scoreEvent: Int?
+        var levelEvent: Int?
+        var linesEvent: (total: Int, rows: Set<Int>, duration: TimeInterval)?
+        var stateEvent: GameDisplayState?
+        var topScoresEvent: [StoredScore]?
+        var playerNameEvent: String?
 
         for event in events {
             switch event {
-            case .gridSize(let w, let h):
-                gridWidth = w
-                gridHeight = h
-            case .grid(let v): grid = v
-            case .pieceBlocks(let v, let color, let hardDropDuration):
-                pieceColor = color
-                if let duration = hardDropDuration,
-                   let prev = previousPieceMinY,
-                   let cur = v.map(\.y).min(),
-                   cur - prev > Constants.Gameplay.hardDropRowThreshold {
-                    hardDropTrigger &+= 1
-                    hardDropDeltaY = cur - prev
-                    hardDropAnimDuration = duration
-                    isHardDropping = true
-                } else if hardDropDuration == nil {
-                    isHardDropping = false
-                }
-                previousPieceMinY = v.map(\.y).min() ?? previousPieceMinY
-                pieceBlocks = v
-            case .nextPieceBlocks(let v, let color):
-                nextPieceColor = color
-                nextPieceBlocks = v
-            case .score(let v): score = v
-            case .level(let v): level = v
-            case .linesCleared(let v, let clearedRows, let animationDuration):
-                linesCleared = v
-                if !clearedRows.isEmpty {
-                    lineClearRows = clearedRows
-                    lineClearAnimDuration = animationDuration
-                    lineClearTrigger &+= 1
-                }
-            case .state(let v): displayState = v
-            case .topScores(let v): topScores = v
-            case .playerName(let v): playerName = v
+            case .gridSize(let w, let h):          gridSizeEvent = (w, h)
+            case .grid(let v):                     gridEvent = v
+            case .pieceBlocks(let v, let c, let d): pieceEvent = (v, c, d)
+            case .nextPieceBlocks(let v, let c):    nextPieceEvent = (v, c)
+            case .score(let v):                    scoreEvent = v
+            case .level(let v):                    levelEvent = v
+            case .linesCleared(let v, let r, let d): linesEvent = (v, r, d)
+            case .state(let v):                    stateEvent = v
+            case .topScores(let v):                topScoresEvent = v
+            case .playerName(let v):               playerNameEvent = v
             }
         }
+
+        // Pass 2 — apply in strict logical order.
+
+        // 1. Board dimensions
+        if let s = gridSizeEvent { gridWidth = s.w; gridHeight = s.h }
+
+        // 2. Snapshot the grid BEFORE it is replaced (line-clear animation needs pre-clear state)
+        if let line = linesEvent, !line.rows.isEmpty {
+            lineClearGridSnapshot = grid
+        }
+
+        // 3. Grid
+        if let v = gridEvent { grid = v }
+
+        // 4. Current piece (includes hard-drop detection)
+        if let p = pieceEvent {
+            pieceColor = p.color
+            if let duration = p.hardDropDuration,
+               let prev = previousPieceMinY,
+               let cur = p.blocks.map(\.y).min(),
+               cur - prev > Constants.Gameplay.hardDropRowThreshold {
+                hardDropTrigger &+= 1
+                hardDropDeltaY = cur - prev
+                hardDropAnimDuration = duration
+                isHardDropping = true
+            } else if p.hardDropDuration == nil {
+                isHardDropping = false
+            }
+            previousPieceMinY = p.blocks.map(\.y).min() ?? previousPieceMinY
+            pieceBlocks = p.blocks
+        }
+
+        // 5. Next piece
+        if let n = nextPieceEvent { nextPieceColor = n.color; nextPieceBlocks = n.blocks }
+
+        // 6. Score
+        if let v = scoreEvent { score = v }
+
+        // 7. Level
+        if let v = levelEvent { level = v }
+
+        // 8. Lines cleared (triggers burn animation)
+        if let l = linesEvent {
+            linesCleared = l.total
+            if !l.rows.isEmpty {
+                lineClearRows = l.rows
+                lineClearAnimDuration = l.duration
+                lineClearTrigger &+= 1
+            }
+        }
+
+        // 9. Game state
+        if let v = stateEvent { displayState = v }
+
+        // 10. Leaderboard
+        if let v = topScoresEvent { topScores = v }
+
+        // 11. Player identity
+        if let v = playerNameEvent { playerName = v }
+
         updateGhost()
     }
 
