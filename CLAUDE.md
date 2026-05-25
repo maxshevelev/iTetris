@@ -44,7 +44,6 @@
 | Review item 1 (Play Again button bug) | ⚠️ Open |
 | Review item 4 (Hard-drop overlay off-screen) | ⚠️ Open |
 | Test coverage | ⚠️ Open — placeholder tests only |
-| Accessibility | ⚠️ Open — no VoiceOver support |
 
 ---
 
