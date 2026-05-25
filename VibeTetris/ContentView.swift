@@ -92,30 +92,24 @@ struct ContentView: View {
             isAnimatingHardDrop = true
             hardDropProgress = 0
             let duration = viewModel.hardDropAnimDuration
-            DispatchQueue.main.async {
-                withAnimation(.easeIn(duration: duration)) {
-                    hardDropProgress = 1.0
-                }
-            }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(duration + Constants.Animation.completionBuffer))
+            withAnimation(.easeIn(duration: duration), completionCriteria: .logicallyComplete) {
+                hardDropProgress = 1.0
+            } completion: {
                 isAnimatingHardDrop = false
                 hardDropFlash = true
-                try? await Task.sleep(for: .milliseconds(Int(Constants.Animation.hardDropFlashDelay * 1000)))
-                hardDropFlash = false
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(Int(Constants.Animation.hardDropFlashDelay * 1000)))
+                    hardDropFlash = false
+                }
             }
         }
         .onChange(of: viewModel.lineClearTrigger) {
             isAnimatingLineClear = true
             lineClearProgress = 0
             let duration = viewModel.lineClearAnimDuration
-            DispatchQueue.main.async {
-                withAnimation(.easeIn(duration: duration)) {
-                    lineClearProgress = 1.0
-                }
-            }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(duration + Constants.Animation.completionBuffer))
+            withAnimation(.easeIn(duration: duration), completionCriteria: .logicallyComplete) {
+                lineClearProgress = 1.0
+            } completion: {
                 isAnimatingLineClear = false
                 viewModel.lineClearGridSnapshot = nil
             }

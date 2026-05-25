@@ -97,8 +97,6 @@ enum Constants {
     // MARK: - Animation
 
     enum Animation {
-        /// Extra time (seconds) added to animation duration for the completion `Task.sleep` to safely overlap.
-        static let completionBuffer: TimeInterval = 0.05
         /// Delay after hard-drop landing before the white flash overlay appears (seconds).
         static let hardDropFlashDelay: TimeInterval = 0.080
 
