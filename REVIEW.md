@@ -56,26 +56,7 @@ A hard drop is inferred by detecting a vertical jump greater than 1 row. While t
 
 ---
 
-### 3. ⚠️ Line-clear snapshot may capture already-cleared rows
-
-**File:** `GameViewModel.swift`, inside `apply()`
-
-```swift
-if hasLineClear { lineClearGridSnapshot = grid }
-
-for event in events {
-    case .grid(let v): grid = v
-    case .linesCleared(...): ...
-}
-```
-
-Events in the batch are processed in an unspecified order. If `.grid` updates are applied *before* `.linesCleared` in the same batch, the snapshot will already be the post-clear grid. The code currently works because `TetrisCore` probably emits `.linesCleared` before `.grid` in the same set, but the iteration order over `Set<GameEvent>` is undefined — this is a latent bug.
-
-**Recommendation:** Take the snapshot at the point where the old grid is still present. Either (a) save the snapshot before applying *any* event in the batch, or (b) ask `TetrisCore` to include the pre-clear rows in the `.linesCleared` payload directly.
-
----
-
-### 4. 📐 Hard drop overlay can render blocks off-screen
+### 3. 📐 Hard drop overlay can render blocks off-screen
 
 **File:** `ContentView.swift`, `hardDropPieceView()`
 
@@ -85,39 +66,7 @@ The `TetrisBoardView` guards against out-of-bounds rendering with `guard block.y
 
 ---
 
-### 5. 🔢 Magic numbers in line-clear animation
-
-**File:** `ContentView.swift`, `cellBurst(cp:cellSize:)`
-
-```swift
-let flash: CGFloat = cp < 0.06 ? 1.0 : max(0, 1.0 - (cp - 0.06) / 0.15)
-let glowScale: CGFloat = cp < 0.08 ? 0.6 : (cp < 0.35 ? 0.6 + 1.2 * (cp - 0.08) / 0.27 : max(0.1, 1.8 - 1.7 * (cp - 0.35) / 0.65))
-let coreScale: CGFloat = cp < 0.5 ? 1.0 : max(0, 1.0 - (cp - 0.5) / 0.5)
-let coreOpacity: CGFloat = cp < 0.4 ? 1.0 : max(0, 1.0 - (cp - 0.4) / 0.4)
-```
-
-These phase thresholds (0.06, 0.08, 0.15, 0.27, 0.35, 0.4, 0.5, 0.65) are tuned entirely by feel and aren't self-documenting. A future maintainer won't know which value controls the flash burst vs. the fire fade.
-
-**Recommendation:** Extract named constants or a small struct `LineClearPhase(flash, glowScale, coreScale, coreOpacity: (CGFloat) -> CGFloat)` that documents each visual stage.
-
----
-
-### 6. ⏱️ `Task.sleep(duration + 0.05)` buffer is fragile
-
-**File:** `ContentView.swift`, hard drop and line clear animation callbacks
-
-```swift
-try? await Task.sleep(for: .seconds(duration + 0.05))
-isAnimatingHardDrop = false
-```
-
-A 50ms safety margin avoids the SwiftUI animation ending just before the sleep fires. This works but isn't robust against device performance variation or a future SwiftUI rendering engine change.
-
-**Recommendation:** Use `withAnimation(..., completionCriteria: .logicallyComplete) { ... } completion: { ... }` (available from iOS 17/macOS 14) to get a guaranteed callback. If the animation duration comes from `TetrisCore`, use it to create an explicit animation, then notify completion through the built-in callback.
-
----
-
-### 7. 🧪 Zero test coverage
+### 4. 🧪 Zero test coverage
 
 **File:** `VibeTetrisTests/VibeTetrisTests.swift`
 
@@ -136,18 +85,7 @@ The test target has a single placeholder. `GameViewModel.apply()` has complex ev
 
 ---
 
-### 8. ♿ No accessibility support
-
-No `.accessibilityLabel()`, `.accessibilityValue()`, or VoiceOver-friendly annotations exist for the board, pieces, score display, or control buttons. A blind or low-vision player cannot use the game.
-
-**Recommendation at minimum:**
-- Give the board a label and value describing the current piece position and score.
-- Make the "Stop", "Resume", "Play Again" buttons accessible.
-- Consider a "voice command" mode if TetrisCore exposes grid state for spoken feedback.
-
----
-
-### 9. 📏 `TetrisBoardView` draws every grid cell every frame
+### 5. 📏 `TetrisBoardView` draws every grid cell every frame
 
 **File:** `TetrisBoardView.swift`
 
@@ -166,21 +104,7 @@ A 10×20 grid draws 200 white rectangles + 200 strokes every frame (~400 Path op
 
 ---
 
-### 10. 📁 `ObservableSettings` existentials
-
-**File:** `ObservableSettings.swift`
-
-```swift
-let raw: any GameSettings
-```
-
-Using `any GameSettings` (an existential protocol) means every property access goes through the existential witness table. For a settings object accessed only on user interaction this is harmless. However, if `TetrisCore` were to read settings on every tick (e.g., `isHardDropAnimated` in the controller loop), the existential dispatch would add a small overhead.
-
-**Recommendation:** If `TetrisCore` reads these values internally via its own concrete type reference (which it likely does — `ObservableSettings` only wraps), there's no issue. Just something to keep in mind if performance profiling ever flags it.
-
----
-
-### 11. 🎮 macOS keyboard mapping is Vim-style (subjective)
+### 6. 🎮 macOS keyboard mapping is Vim-style (subjective)
 
 **File:** `ContentView.swift`, `handleKeyPress()`
 
@@ -204,10 +128,9 @@ Arrow keys are the conventional choice for Tetris. The `hjkl` mapping is clever 
 | Code quality    | ⭐⭐⭐⭐ |
 | Visual design   | ⭐⭐⭐⭐⭐ |
 | Test coverage   | ⭐ (empty)    |
-| Accessibility   | ⭐ (none)     |
-| Robustness      | ⭐⭐⭐   |
+| Robustness      | ⭐⭐⭐⭐ |
 
-The project is well-structured, visually impressive, and clearly built with care. The main risks are the "Play Again" bug, the implicit hard drop detection heuristic, and the undefined event iteration order for line-clear snapshots. Addressing those three items and adding basic unit tests for `GameViewModel.apply()` would elevate the codebase from "great prototype" to "production-ready."
+The project is well-structured, visually impressive, and clearly built with care. The main risks are the "Play Again" bug and the implicit hard drop detection heuristic. Addressing those items and adding basic unit tests for `GameViewModel.apply()` would elevate the codebase from "great prototype" to "production-ready."
 
 ---
 *Review by project analysis. 2026-05-25.*
