@@ -22,8 +22,8 @@ struct SettingsView: View {
             generalTab
                 .tabItem { Label("General", systemImage: "gearshape") }
         }
-        .frame(width: 320)
-        .frame(minHeight: 300)
+        .frame(width: Constants.Layout.Settings.windowWidth)
+        .frame(minHeight: Constants.Layout.Settings.windowMinHeight)
         .onAppear {
             nameDraft = settings.playerName
             lockImmediately = settings.lockImmediatelyAfterHardDrop
@@ -56,7 +56,7 @@ struct SettingsView: View {
             Section("Gameplay") {
                 Toggle("Immediate lock after hard drop", isOn: $lockImmediately)
                 Picker("Initial level", selection: $initialLevel) {
-                    ForEach(1...10, id: \.self) { level in
+                    ForEach(Constants.Layout.Settings.levelRange, id: \.self) { level in
                         Text("\(level)").tag(level)
                     }
                 }

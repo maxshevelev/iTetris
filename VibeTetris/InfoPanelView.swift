@@ -10,8 +10,8 @@ struct InfoPanelView: View {
     var onStop: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Constants.Layout.InfoPanel.sectionSpacing) {
+            VStack(alignment: .leading, spacing: Constants.Layout.InfoPanel.fieldLabelSpacing) {
                 Text("SCORE")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -19,7 +19,7 @@ struct InfoPanelView: View {
                     .font(.largeTitle.monospacedDigit().weight(.medium))
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Constants.Layout.InfoPanel.fieldLabelSpacing) {
                 Text("LEVEL")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -27,7 +27,7 @@ struct InfoPanelView: View {
                     .font(.largeTitle.monospacedDigit().weight(.medium))
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Constants.Layout.InfoPanel.fieldLabelSpacing) {
                 Text("LINES")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -35,7 +35,7 @@ struct InfoPanelView: View {
                     .font(.largeTitle.monospacedDigit().weight(.medium))
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Constants.Layout.InfoPanel.nextPieceSpacing) {
                 Text("NEXT")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -48,9 +48,9 @@ struct InfoPanelView: View {
                     .buttonStyle(.bordered)
             }
         }
-        .padding(20)
+        .padding(Constants.Layout.InfoPanel.padding)
         .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: Constants.Layout.InfoPanel.cornerRadius))
+        .shadow(color: .black.opacity(Constants.Layout.InfoPanel.shadowOpacity), radius: Constants.Layout.InfoPanel.shadowRadius, y: Constants.Layout.InfoPanel.shadowY)
     }
 }

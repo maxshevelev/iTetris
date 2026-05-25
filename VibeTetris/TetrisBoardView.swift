@@ -28,12 +28,12 @@ struct TetrisBoardView: View {
                     context.fill(Path(rect), with: .color(.white))
                     context.stroke(
                         Path(rect),
-                        with: .color(.gray.opacity(0.18)),
-                        lineWidth: 0.5
+                        with: .color(.gray.opacity(Constants.Layout.Board.gridLineOpacity)),
+                        lineWidth: Constants.Layout.Board.gridLineWidth
                     )
 
                     if let color = grid[PieceCoordinate(x: x, y: y)] {
-                        let inset = cellSize * 0.08
+                        let inset = cellSize * Constants.Layout.blockInsetRatio
                         context.fill(
                             Path(rect.insetBy(dx: inset, dy: inset)),
                             with: .color(color.swiftUIColor)
@@ -52,7 +52,7 @@ struct TetrisBoardView: View {
                         width: cellSize,
                         height: cellSize
                     )
-                    let inset = cellSize * 0.08
+                    let inset = cellSize * Constants.Layout.blockInsetRatio
                     context.fill(
                         Path(rect.insetBy(dx: inset, dy: inset)),
                         with: .color(pieceColor.swiftUIColor)
@@ -61,10 +61,10 @@ struct TetrisBoardView: View {
             }
         }
         .aspectRatio(CGFloat(gridWidth) / CGFloat(gridHeight), contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .clipShape(RoundedRectangle(cornerRadius: Constants.Layout.Board.cornerRadius))
         .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(.gray.opacity(0.4), lineWidth: 1)
+            RoundedRectangle(cornerRadius: Constants.Layout.Board.cornerRadius)
+                .stroke(.gray.opacity(Constants.Layout.Board.borderOpacity), lineWidth: Constants.Layout.Board.borderWidth)
         )
     }
 }

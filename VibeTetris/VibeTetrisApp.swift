@@ -16,7 +16,7 @@ struct VibeTetrisApp: App {
             ContentView(settings: settings)
         }
         #if os(macOS)
-        .defaultSize(width: 480, height: 640)
+        .defaultSize(width: Constants.Layout.AppWindow.defaultWidth, height: Constants.Layout.AppWindow.defaultHeight)
         .windowResizability(.contentSize)
         #endif
 

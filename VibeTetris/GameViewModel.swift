@@ -4,14 +4,14 @@ import TetrisCore
 @Observable
 final class GameViewModel {
     var grid: [PieceCoordinate: TetrominoColor] = [:]
-    var gridWidth = 10
-    var gridHeight = 20
+    var gridWidth = Constants.Grid.defaultWidth
+    var gridHeight = Constants.Grid.defaultHeight
     var pieceBlocks: Set<PieceCoordinate> = []
-    var pieceColor: TetrominoColor = .cyan
+    var pieceColor: TetrominoColor = Constants.Gameplay.defaultPieceColor
     var nextPieceBlocks: Set<PieceCoordinate> = []
-    var nextPieceColor: TetrominoColor = .cyan
+    var nextPieceColor: TetrominoColor = Constants.Gameplay.defaultPieceColor
     var score = 0
-    var level = 1
+    var level = Constants.Gameplay.defaultLevel
     var linesCleared = 0
     var displayState: GameDisplayState = .playing
     var topScores: [StoredScore] = []
@@ -68,7 +68,7 @@ final class GameViewModel {
                 if let duration = hardDropDuration,
                    let prev = previousPieceMinY,
                    let cur = v.map(\.y).min(),
-                   cur - prev > 1 {
+                   cur - prev > Constants.Gameplay.hardDropRowThreshold {
                     hardDropTrigger &+= 1
                     hardDropDeltaY = cur - prev
                     hardDropAnimDuration = duration
@@ -112,7 +112,4 @@ extension TetrominoColor {
     }
 }
 
-extension Color {
-    static let cream = Color(red: 0.992, green: 0.973, blue: 0.918)
-    static let creamDark = Color(red: 0.949, green: 0.918, blue: 0.847)
-}
+

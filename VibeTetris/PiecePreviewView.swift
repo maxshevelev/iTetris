@@ -4,7 +4,7 @@ import TetrisCore
 struct PiecePreviewView: View {
     let blocks: Set<PieceCoordinate>
     let color: TetrominoColor
-    private let previewSize = 4
+    private let previewSize = Constants.Layout.Preview.gridSize
 
     var body: some View {
         Canvas { context, size in
@@ -20,7 +20,7 @@ struct PiecePreviewView: View {
                     width: cellSize,
                     height: cellSize
                 )
-                let inset = cellSize * 0.08
+                let inset = cellSize * Constants.Layout.blockInsetRatio
                 context.fill(
                     Path(rect.insetBy(dx: inset, dy: inset)),
                     with: .color(color.swiftUIColor)

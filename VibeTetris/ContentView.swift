@@ -19,9 +19,9 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.cream.ignoresSafeArea()
+            Constants.Colors.cream.ignoresSafeArea()
 
-            HStack(alignment: .top, spacing: 16) {
+            HStack(alignment: .top, spacing: Constants.Layout.hStackSpacing) {
                 Spacer(minLength: 0)
 
                 TetrisBoardView(
@@ -32,7 +32,7 @@ struct ContentView: View {
                     gridWidth: viewModel.gridWidth,
                     gridHeight: viewModel.gridHeight
                 )
-                .frame(maxWidth: 360, maxHeight: .infinity)
+                .frame(maxWidth: Constants.Layout.boardMaxWidth, maxHeight: .infinity)
                 .overlay {
                     GeometryReader { geo in
                         if isAnimatingLineClear {
@@ -43,14 +43,14 @@ struct ContentView: View {
                         }
                     }
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, Constants.Layout.verticalPadding)
                 .gesture(swipeGesture)
                 .simultaneousGesture(rotateTap)
                 .simultaneousGesture(pauseLongPress)
                 .overlay {
                     Rectangle()
-                        .fill(.white.opacity(hardDropFlash ? 0.35 : 0))
-                        .animation(.easeOut(duration: 0.25), value: hardDropFlash)
+                        .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
+                        .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
                         .allowsHitTesting(false)
                 }
 
@@ -62,8 +62,8 @@ struct ContentView: View {
                     nextPieceColor: viewModel.nextPieceColor,
                     onStop: { viewModel.stop() }
                 )
-                .frame(width: 160)
-                .padding(.top, 8)
+                .frame(width: Constants.Layout.infoPanelWidth)
+                .padding(.top, Constants.Layout.verticalPadding)
 
                 Spacer(minLength: 0)
             }
@@ -97,10 +97,10 @@ struct ContentView: View {
                 }
             }
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(duration + 0.05))
+                try? await Task.sleep(for: .seconds(duration + Constants.Animation.completionBuffer))
                 isAnimatingHardDrop = false
                 hardDropFlash = true
-                try? await Task.sleep(for: .milliseconds(80))
+                try? await Task.sleep(for: .milliseconds(Int(Constants.Animation.hardDropFlashDelay * 1000)))
                 hardDropFlash = false
             }
         }
@@ -114,7 +114,7 @@ struct ContentView: View {
                 }
             }
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(duration + 0.05))
+                try? await Task.sleep(for: .seconds(duration + Constants.Animation.completionBuffer))
                 isAnimatingLineClear = false
                 viewModel.lineClearGridSnapshot = nil
             }
@@ -135,8 +135,8 @@ struct ContentView: View {
         return ForEach(Array(viewModel.lineClearRows), id: \.self) { row in
             ForEach(0..<cols, id: \.self) { col in
                 let dist = abs(CGFloat(col) - CGFloat(cols - 1) / 2) / (CGFloat(cols - 1) / 2)
-                let delay = dist * 0.2
-                let cp = max(0, min(1, (p - delay) / max(0.001, 1 - delay)))
+                let delay = dist * Constants.Animation.LineClear.waveSpeedMultiplier
+                let cp = max(0, min(1, (p - delay) / max(Constants.Animation.LineClear.epsilon, 1 - delay)))
 
                 cellBurst(cp: cp, cellSize: cellSize)
                     .position(
@@ -148,10 +148,34 @@ struct ContentView: View {
     }
 
     private func cellBurst(cp: CGFloat, cellSize: CGFloat) -> some View {
-        let flash: CGFloat = cp < 0.06 ? 1.0 : max(0, 1.0 - (cp - 0.06) / 0.15)
-        let glowScale: CGFloat = cp < 0.08 ? 0.6 : (cp < 0.35 ? 0.6 + 1.2 * (cp - 0.08) / 0.27 : max(0.1, 1.8 - 1.7 * (cp - 0.35) / 0.65))
-        let coreScale: CGFloat = cp < 0.5 ? 1.0 : max(0, 1.0 - (cp - 0.5) / 0.5)
-        let coreOpacity: CGFloat = cp < 0.4 ? 1.0 : max(0, 1.0 - (cp - 0.4) / 0.4)
+        typealias LC = Constants.Animation.LineClear
+
+        // Flash — bright white burst at the very start
+        let flash: CGFloat = cp < LC.flashPhaseStart
+            ? LC.flashPeakOpacity
+            : max(0, LC.flashPeakOpacity - (cp - LC.flashPhaseStart) / LC.flashPhaseDuration)
+
+        // Glow — expanding radial fire ring
+        let glowScale: CGFloat
+        if cp < LC.glowGrowStart {
+            glowScale = LC.glowInitialScale
+        } else if cp < LC.glowGrowEnd {
+            let growProgress = (cp - LC.glowGrowStart) / (LC.glowGrowEnd - LC.glowGrowStart)
+            glowScale = LC.glowInitialScale + LC.glowGrowAmount * growProgress
+        } else {
+            let shrinkProgress = (cp - LC.glowGrowEnd) / (1 - LC.glowGrowEnd)
+            glowScale = max(LC.glowMinScale, LC.glowShrinkFrom - LC.glowShrinkBy * shrinkProgress)
+        }
+
+        // Core — solid block that shrinks
+        let coreScale: CGFloat = cp < LC.coreHoldUntil
+            ? LC.coreFullScale
+            : max(0, LC.coreFullScale - (cp - LC.coreHoldUntil) / LC.coreFadeDuration)
+
+        // Core opacity — fades out before the scale shrinks
+        let coreOpacity: CGFloat = cp < LC.coreOpacityHoldUntil
+            ? LC.coreFullOpacity
+            : max(0, LC.coreFullOpacity - (cp - LC.coreOpacityHoldUntil) / LC.coreOpacityFadeDuration)
 
         return ZStack {
             // Flash — bright white burst
@@ -163,9 +187,9 @@ struct ContentView: View {
             Circle()
                 .fill(RadialGradient(
                     gradient: Gradient(colors: [
-                        .orange,
-                        .red.opacity(0.5),
-                        .clear
+                        Constants.Colors.LineClear.glowOuter,
+                        Constants.Colors.LineClear.glowMid,
+                        Constants.Colors.LineClear.glowInner
                     ]),
                     center: .center,
                     startRadius: 0,
@@ -177,9 +201,9 @@ struct ContentView: View {
             Rectangle()
                 .fill(LinearGradient(
                     gradient: Gradient(colors: [
-                        Color(red: 1, green: 0.95, blue: 0.6),
-                        Color(red: 1, green: 0.5, blue: 0),
-                        Color(red: 0.8, green: 0, blue: 0)
+                        Constants.Colors.LineClear.fireCoreTop,
+                        Constants.Colors.LineClear.fireCoreMid,
+                        Constants.Colors.LineClear.fireCoreBot
                     ]),
                     startPoint: .top,
                     endPoint: .bottom
@@ -195,8 +219,8 @@ struct ContentView: View {
         let gw = CGFloat(viewModel.gridWidth)
         let gh = CGFloat(viewModel.gridHeight)
         let cellSize = min(size.width / gw, size.height / gh)
-        let blockSize = cellSize * 0.84
-        let inset = cellSize * 0.08
+        let blockSize = cellSize * Constants.Layout.HardDrop.blockToCellRatio
+        let inset = cellSize * Constants.Layout.blockInsetRatio
         let ox = (size.width - cellSize * gw) / 2
         let oy = (size.height - cellSize * gh) / 2
 
@@ -207,7 +231,7 @@ struct ContentView: View {
 
         return ZStack {
             ForEach(blocks, id: \.self) { block in
-                RoundedRectangle(cornerRadius: 2)
+                RoundedRectangle(cornerRadius: Constants.Layout.HardDrop.blockCornerRadius)
                     .fill(viewModel.pieceColor.swiftUIColor)
                     .frame(width: blockSize, height: blockSize)
                     .offset(x: CGFloat(block.x - minX) * cellSize,
@@ -223,7 +247,7 @@ struct ContentView: View {
     // MARK: - Gestures
 
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 20)
+        DragGesture(minimumDistance: Constants.Input.minimumSwipeDistance)
             .onEnded { value in
                 let dx = value.translation.width
                 let dy = value.translation.height
@@ -242,7 +266,7 @@ struct ContentView: View {
     }
 
     private var pauseLongPress: some Gesture {
-        LongPressGesture(minimumDuration: 0.5)
+        LongPressGesture(minimumDuration: Constants.Input.pauseLongPressDuration)
             .onEnded { _ in viewModel.pause() }
     }
 
@@ -250,8 +274,8 @@ struct ContentView: View {
 
     private var pauseOverlay: some View {
         ZStack {
-            Color.cream.opacity(0.92).ignoresSafeArea()
-            VStack(spacing: 16) {
+            Constants.Colors.cream.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
+            VStack(spacing: Constants.Layout.Overlay.vStackSpacing) {
                 Text("PAUSED")
                     .font(.largeTitle.bold())
                 Button("Resume") { viewModel.resume() }
@@ -263,12 +287,12 @@ struct ContentView: View {
 
     private var gameOverOverlay: some View {
         ZStack {
-            Color.cream.opacity(0.92).ignoresSafeArea()
-            VStack(spacing: 16) {
+            Constants.Colors.cream.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
+            VStack(spacing: Constants.Layout.Overlay.vStackSpacing) {
                 Text("GAME OVER")
                     .font(.largeTitle.bold())
 
-                VStack(spacing: 4) {
+                VStack(spacing: Constants.Layout.Overlay.topScoresSpacing) {
                     Text("Score: \(viewModel.score)")
                         .font(.title)
                     Text("Level: \(viewModel.level)  Lines: \(viewModel.linesCleared)")
@@ -277,13 +301,13 @@ struct ContentView: View {
                 }
 
                 if !viewModel.topScores.isEmpty {
-                    VStack(spacing: 4) {
+                    VStack(spacing: Constants.Layout.Overlay.topScoresSpacing) {
                         Text("TOP SCORES")
                             .font(.headline)
                             .foregroundStyle(.secondary)
-                            .padding(.top, 8)
-                        ForEach(viewModel.topScores.prefix(5), id: \.self) { entry in
-                            HStack(spacing: 8) {
+                            .padding(.top, Constants.Layout.Overlay.buttonTopPadding)
+                        ForEach(viewModel.topScores.prefix(Constants.Layout.Overlay.topScoresDisplayCount), id: \.self) { entry in
+                            HStack(spacing: Constants.Layout.Overlay.topScoresHStackSpacing) {
                                 Text(entry.playerName)
                                     .lineLimit(1)
                                 Spacer()
@@ -291,7 +315,7 @@ struct ContentView: View {
                                     .monospacedDigit()
                             }
                             .font(.title3)
-                            .frame(width: 200)
+                            .frame(width: Constants.Layout.Overlay.topScoresFrameWidth)
                         }
                     }
                 }
@@ -300,7 +324,7 @@ struct ContentView: View {
                     viewModel.hardDrop()
                 }
                 .buttonStyle(.borderedProminent)
-                .padding(.top, 8)
+                .padding(.top, Constants.Layout.Overlay.buttonTopPadding)
             }
         }
     }
