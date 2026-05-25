@@ -18,6 +18,9 @@ enum Constants {
         static let cream = Color(red: 0.992, green: 0.973, blue: 0.918)
         static let creamDark = Color(red: 0.949, green: 0.918, blue: 0.847)
 
+        // Ghost piece — light shadow showing landing position
+        static let ghostPiece = Color.gray.opacity(0.22)
+
         // Line-clear fire effect
         enum LineClear {
             static let glowOuter = Color.orange

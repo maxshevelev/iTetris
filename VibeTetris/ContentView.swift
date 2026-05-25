@@ -26,6 +26,7 @@ struct ContentView: View {
 
                 TetrisBoardView(
                     grid: isAnimatingLineClear ? (viewModel.lineClearGridSnapshot ?? viewModel.grid) : viewModel.grid,
+                    ghostPieceBlocks: viewModel.ghostPieceBlocks,
                     pieceBlocks: viewModel.pieceBlocks,
                     pieceColor: viewModel.pieceColor,
                     isHardDropping: isAnimatingHardDrop,

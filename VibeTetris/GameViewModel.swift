@@ -24,6 +24,7 @@ final class GameViewModel {
     var lineClearAnimDuration: TimeInterval = 0
     var lineClearTrigger = 0
     var lineClearGridSnapshot: [PieceCoordinate: TetrominoColor]?
+    var ghostPieceBlocks: Set<PieceCoordinate> = []
 
     private let controller: GameController
     private var tickTask: Task<Void, Never>?
@@ -94,6 +95,21 @@ final class GameViewModel {
             case .topScores(let v): topScores = v
             case .playerName(let v): playerName = v
             }
+        }
+        updateGhost()
+    }
+
+    /// Drop the current piece straight down until it collides with the grid or bottom.
+    private func updateGhost() {
+        guard !pieceBlocks.isEmpty else { ghostPieceBlocks = []; return }
+        var shifted = pieceBlocks
+        while true {
+            let candidate = Set(shifted.map { PieceCoordinate(x: $0.x, y: $0.y + 1) })
+            let collides = candidate.contains { block in
+                block.y >= gridHeight || grid[block] != nil
+            }
+            if collides { ghostPieceBlocks = shifted; return }
+            shifted = candidate
         }
     }
 }

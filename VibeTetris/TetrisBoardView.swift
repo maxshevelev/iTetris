@@ -3,6 +3,7 @@ import TetrisCore
 
 struct TetrisBoardView: View {
     let grid: [PieceCoordinate: TetrominoColor]
+    let ghostPieceBlocks: Set<PieceCoordinate>
     let pieceBlocks: Set<PieceCoordinate>
     let pieceColor: TetrominoColor
     let isHardDropping: Bool
@@ -43,6 +44,23 @@ struct TetrisBoardView: View {
             }
 
             if !isHardDropping {
+                // Ghost piece — landing preview
+                for block in ghostPieceBlocks {
+                    guard block.y >= 0, block.x >= 0,
+                          block.x < gridWidth, block.y < gridHeight else { continue }
+                    let rect = CGRect(
+                        x: offsetX + CGFloat(block.x) * cellSize,
+                        y: offsetY + CGFloat(block.y) * cellSize,
+                        width: cellSize,
+                        height: cellSize
+                    )
+                    let inset = cellSize * Constants.Layout.blockInsetRatio
+                    context.fill(
+                        Path(rect.insetBy(dx: inset, dy: inset)),
+                        with: .color(Constants.Colors.ghostPiece)
+                    )
+                }
+
                 for block in pieceBlocks {
                     guard block.y >= 0, block.x >= 0,
                           block.x < gridWidth, block.y < gridHeight else { continue }
