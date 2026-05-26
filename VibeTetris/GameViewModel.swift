@@ -52,7 +52,7 @@ final class GameViewModel {
     func resume() { Task { await controller.enqueue(.resume) } }
     func stop() { Task { await controller.enqueue(.stop) } }
 
-    private func apply(_ events: Set<GameEvent>) {
+    func apply(_ events: Set<GameEvent>) {
         // Pass 1 — collect all event values without applying them.
         // This decouples the application order from Set's undefined iteration order.
         var gridSizeEvent: (w: Int, h: Int)?

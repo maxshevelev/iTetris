@@ -66,7 +66,7 @@ The `TetrisBoardView` guards against out-of-bounds rendering with `guard block.y
 
 ---
 
-### 4. 🧪 Zero test coverage
+### 4. ✅ ~~Zero test coverage~~ *(fixed — 13 tests for GameViewModel.apply())*
 
 **File:** `VibeTetrisTests/VibeTetrisTests.swift`
 

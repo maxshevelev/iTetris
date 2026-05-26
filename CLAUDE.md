@@ -43,7 +43,7 @@
 | Ghost piece rendering | ✅ Done |
 | Review item 1 (Play Again button bug) | ✅ Done — `.start` control event |
 | Review item 4 (Hard-drop overlay off-screen) | ⚠️ Open |
-| Test coverage | ⚠️ Open — placeholder tests only |
+| Test coverage | ✅ Done — 13 unit tests for GameViewModel.apply() |
 
 ---
 
