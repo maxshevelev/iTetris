@@ -3,7 +3,7 @@
 ## Architecture & Stack
 
 - **UI:** SwiftUI (iOS 17+ / macOS 14+) with `@Observable` macro, `Canvas` rendering
-- **Game logic:** External package [TetrisCore](https://github.com/maxshevelev/TetrisCore) (`sparse-grid` branch), consumed via SPM
+- **TetrisCore branch:** `srs-wall-kicks-v2` (SRS rotation wall kicks, `.start` restart event)
 - **Cross-platform:** Single codebase; macOS gets `Settings` scene, keyboard input, AppDelegate; iOS gets gesture controls
 - **State flow:** `GameController` (actor) → `AsyncStream<Set<GameEvent>>` → `GameViewModel.apply()` → `@Observable` properties → SwiftUI views
 - **Settings:** `PersistentGameSettings` from TetrisCore, proxied through `ObservableSettings` for SwiftUI bindings
@@ -41,7 +41,7 @@
 | Address review item 3 (Set iteration order) | ✅ Done — two-pass apply |
 | Address review item 6 (Task.sleep buffer) | ✅ Done — withAnimation completion |
 | Ghost piece rendering | ✅ Done |
-| Review item 1 (Play Again button bug) | ⚠️ Open |
+| Review item 1 (Play Again button bug) | ✅ Done — `.start` control event |
 | Review item 4 (Hard-drop overlay off-screen) | ⚠️ Open |
 | Test coverage | ⚠️ Open — placeholder tests only |
 

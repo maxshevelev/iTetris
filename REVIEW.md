@@ -21,7 +21,7 @@ The codebase is clean, concise (~600 lines of Swift across 8 files), and makes g
 
 ## Issues & Suggestions
 
-### 1. 🐛 "Play Again" fires `hardDrop()` instead of restarting the game
+### 1. ✅ ~~"Play Again" fires `hardDrop()` instead of restarting the game~~ *(fixed)*
 
 **File:** `ContentView.swift`, game over overlay
 
@@ -130,7 +130,7 @@ Arrow keys are the conventional choice for Tetris. The `hjkl` mapping is clever 
 | Test coverage   | ⭐ (empty)    |
 | Robustness      | ⭐⭐⭐⭐ |
 
-The project is well-structured, visually impressive, and clearly built with care. The main risks are the "Play Again" bug and the implicit hard drop detection heuristic. Addressing those items and adding basic unit tests for `GameViewModel.apply()` would elevate the codebase from "great prototype" to "production-ready."
+The project is well-structured, visually impressive, and clearly built with care. The main remaining risk is the implicit hard drop detection heuristic. Addressing that and adding basic unit tests for `GameViewModel.apply()` would elevate the codebase from "great prototype" to "production-ready."
 
 ---
 *Review by project analysis. 2026-05-25.*

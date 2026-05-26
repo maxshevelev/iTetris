@@ -42,6 +42,7 @@ final class GameViewModel {
     func start() {
         Task { await controller.start() }
     }
+    func restartGame() { Task { await controller.enqueue(.start) } }
 
     func moveLeft() { Task { await controller.enqueue(.moveLeft) } }
     func moveRight() { Task { await controller.enqueue(.moveRight) } }

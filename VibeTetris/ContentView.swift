@@ -316,7 +316,7 @@ struct ContentView: View {
                 }
 
                 Button("Play Again") {
-                    viewModel.hardDrop()
+                    viewModel.restartGame()
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.top, Constants.Layout.Overlay.buttonTopPadding)

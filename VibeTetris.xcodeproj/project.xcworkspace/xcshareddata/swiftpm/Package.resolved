@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/maxshevelev/TetrisCore",
       "state" : {
-        "branch" : "sparse-grid",
-        "revision" : "6a289d44b9a20ac39da07990396761487c30216d"
+        "branch" : "srs-wall-kicks-v2",
+        "revision" : "40302c1ec34e799fbc969d5e8d3e828f39215513"
       }
     }
   ],
