@@ -65,6 +65,7 @@ final class GameViewModel {
         var stateEvent: GameDisplayState?
         var topScoresEvent: [StoredScore]?
         var playerNameEvent: String?
+        var ghostEvent: Set<PieceCoordinate>?
 
         for event in events {
             switch event {
@@ -72,6 +73,7 @@ final class GameViewModel {
             case .grid(let v):                     gridEvent = v
             case .pieceBlocks(let v, let c, let d): pieceEvent = (v, c, d)
             case .nextPieceBlocks(let v, let c):    nextPieceEvent = (v, c)
+            case .ghostPieceBlocks(let v):          ghostEvent = v
             case .score(let v):                    scoreEvent = v
             case .level(let v):                    levelEvent = v
             case .linesCleared(let v, let r, let d): linesEvent = (v, r, d)
@@ -112,16 +114,19 @@ final class GameViewModel {
             pieceBlocks = p.blocks
         }
 
-        // 5. Next piece
+        // 5. Ghost piece (landing preview, provided by TetrisCore)
+        if let v = ghostEvent { ghostPieceBlocks = v }
+
+        // 6. Next piece
         if let n = nextPieceEvent { nextPieceColor = n.color; nextPieceBlocks = n.blocks }
 
-        // 6. Score
+        // 7. Score
         if let v = scoreEvent { score = v }
 
-        // 7. Level
+        // 8. Level
         if let v = levelEvent { level = v }
 
-        // 8. Lines cleared (triggers burn animation)
+        // 9. Lines cleared (triggers burn animation)
         if let l = linesEvent {
             linesCleared = l.total
             if !l.rows.isEmpty {
@@ -131,30 +136,14 @@ final class GameViewModel {
             }
         }
 
-        // 9. Game state
+        // 10. Game state
         if let v = stateEvent { displayState = v }
 
-        // 10. Leaderboard
+        // 11. Leaderboard
         if let v = topScoresEvent { topScores = v }
 
-        // 11. Player identity
+        // 12. Player identity
         if let v = playerNameEvent { playerName = v }
-
-        updateGhost()
-    }
-
-    /// Drop the current piece straight down until it collides with the grid or bottom.
-    private func updateGhost() {
-        guard !pieceBlocks.isEmpty else { ghostPieceBlocks = []; return }
-        var shifted = pieceBlocks
-        while true {
-            let candidate = Set(shifted.map { PieceCoordinate(x: $0.x, y: $0.y + 1) })
-            let collides = candidate.contains { block in
-                block.y >= gridHeight || grid[block] != nil
-            }
-            if collides { ghostPieceBlocks = shifted; return }
-            shifted = candidate
-        }
     }
 }
 

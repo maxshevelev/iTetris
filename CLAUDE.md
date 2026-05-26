@@ -28,7 +28,7 @@
 - **No magic numbers.** All sizes, opacities, durations, and colors live in `Constants.swift` organized by sub-enum.
 - **Event processing is order-independent.** `GameViewModel.apply()` uses a two-pass collector-then-apply pattern. Pass 1 gathers values without side effects; Pass 2 applies in a strict logical order (dimensions → grid snapshot → grid → piece → …). Never rely on `Set` iteration order.
 - **Animation completion uses `withAnimation(completionCriteria: .logicallyComplete) { } completion: { }`**, not `Task.sleep` buffers.
-- **Ghost piece** is computed locally in `GameViewModel.updateGhost()` by dropping the current piece until grid/bottom collision.
+- **Ghost piece** is now provided by TetrisCore via `.ghostPieceBlocks` event (no local computation).
 - **Colors** are defined in `Constants.Colors`; never inline `Color(red:green:blue:)` in views.
 - **TetrominoColor → SwiftUI Color** mapping lives in `GameViewModel.swift` as a single `swiftUIColor` extension.
 - **`#Preview`** macros are included at the bottom of each view file.
