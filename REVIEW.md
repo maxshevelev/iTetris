@@ -85,7 +85,7 @@ The test target has a single placeholder. `GameViewModel.apply()` has complex ev
 
 ---
 
-### 5. 📏 `TetrisBoardView` draws every grid cell every frame
+### 5. ✅ ~~`TetrisBoardView` draws every grid cell every frame~~ *(fixed)*
 
 **File:** `TetrisBoardView.swift`
 
@@ -127,10 +127,10 @@ Arrow keys are the conventional choice for Tetris. The `hjkl` mapping is clever 
 | Architecture    | ⭐⭐⭐⭐ |
 | Code quality    | ⭐⭐⭐⭐ |
 | Visual design   | ⭐⭐⭐⭐⭐ |
-| Test coverage   | ⭐ (empty)    |
-| Robustness      | ⭐⭐⭐⭐ |
+| Test coverage   | ⭐⭐⭐⭐ |
+| Robustness      | ⭐⭐⭐⭐⭐ |
 
-The project is well-structured, visually impressive, and clearly built with care. The main remaining risk is the implicit hard drop detection heuristic. Addressing that and adding basic unit tests for `GameViewModel.apply()` would elevate the codebase from "great prototype" to "production-ready."
+The project is well-structured, visually impressive, and clearly built with care. The main remaining risks are the implicit hard drop detection heuristic and the off-screen hard-drop overlay rendering.
 
 ---
 *Review by project analysis. 2026-05-25.*
