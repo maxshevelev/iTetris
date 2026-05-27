@@ -2,8 +2,6 @@ import SwiftUI
 import TetrisCore
 
 /// Cached grid background — white cells with subtle grid lines.
-/// SwiftUI composites and caches this via `.drawingGroup()` so it only redraws
-/// when the canvas size or grid dimensions actually change.
 private struct GridBackgroundView: View {
     let gridWidth: Int
     let gridHeight: Int
@@ -36,6 +34,36 @@ private struct GridBackgroundView: View {
     }
 }
 
+/// Cached locked blocks — only redraws when the grid dictionary changes.
+private struct LockedBlocksView: View {
+    let grid: [PieceCoordinate: TetrominoColor]
+    let gridWidth: Int
+    let gridHeight: Int
+
+    var body: some View {
+        Canvas { context, size in
+            let cellW = size.width / CGFloat(gridWidth)
+            let cellH = size.height / CGFloat(gridHeight)
+            let cellSize = min(cellW, cellH)
+            let offsetX = (size.width - cellSize * CGFloat(gridWidth)) / 2
+            let offsetY = (size.height - cellSize * CGFloat(gridHeight)) / 2
+            let inset = cellSize * Constants.Layout.blockInsetRatio
+
+            for (coord, color) in grid {
+                guard coord.x >= 0, coord.x < gridWidth,
+                      coord.y >= 0, coord.y < gridHeight else { continue }
+                let rect = CGRect(
+                    x: offsetX + CGFloat(coord.x) * cellSize,
+                    y: offsetY + CGFloat(coord.y) * cellSize,
+                    width: cellSize,
+                    height: cellSize
+                ).insetBy(dx: inset, dy: inset)
+                context.fill(Path(rect), with: .color(color.swiftUIColor))
+            }
+        }
+    }
+}
+
 // MARK: - TetrisBoardView
 
 struct TetrisBoardView: View {
@@ -49,11 +77,15 @@ struct TetrisBoardView: View {
 
     var body: some View {
         ZStack {
-            // Static grid background — cached by drawingGroup()
+            // Layer 1: grid background (cached via drawingGroup)
             GridBackgroundView(gridWidth: gridWidth, gridHeight: gridHeight)
                 .drawingGroup()
 
-            // Dynamic layer — only draws blocks, ghost, and piece
+            // Layer 2: locked blocks (cached via drawingGroup)
+            LockedBlocksView(grid: grid, gridWidth: gridWidth, gridHeight: gridHeight)
+                .drawingGroup()
+
+            // Layer 3: ghost + active piece (redraws every tick)
             Canvas { context, size in
                 let cellW = size.width / CGFloat(gridWidth)
                 let cellH = size.height / CGFloat(gridHeight)
@@ -76,21 +108,14 @@ struct TetrisBoardView: View {
                     context.fill(Path(rect), with: .color(color))
                 }
 
-                // 1. Locked blocks on the grid
-                for (coord, color) in grid {
-                    guard coord.x >= 0, coord.x < gridWidth,
-                          coord.y >= 0, coord.y < gridHeight else { continue }
-                    fillBlock(coord, color.swiftUIColor)
-                }
-
-                // 2. Ghost piece — landing preview
+                // Ghost piece
                 for block in ghostPieceBlocks {
                     guard block.x >= 0, block.x < gridWidth,
                           block.y >= 0, block.y < gridHeight else { continue }
                     fillBlock(block, Constants.Colors.ghostPiece)
                 }
 
-                // 3. Current active piece
+                // Active piece
                 if !isHardDropping {
                     for block in pieceBlocks {
                         guard block.x >= 0, block.x < gridWidth,
