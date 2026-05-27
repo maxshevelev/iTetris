@@ -3,7 +3,7 @@
 ## Architecture & Stack
 
 - **UI:** SwiftUI (iOS 17+ / macOS 14+) with `@Observable` macro, `Canvas` rendering
-- **TetrisCore branch:** `srs-wall-kicks-v2` (SRS rotation wall kicks, `.start` restart event)
+- **TetrisCore branch:** `main` (SRS rotation wall kicks, `.start` restart event, ghost piece event)
 - **Cross-platform:** Single codebase; macOS gets `Settings` scene, keyboard input, AppDelegate; iOS gets gesture controls
 - **State flow:** `GameController` (actor) → `AsyncStream<Set<GameEvent>>` → `GameViewModel.apply()` → `@Observable` properties → SwiftUI views
 - **Settings:** `PersistentGameSettings` from TetrisCore, proxied through `ObservableSettings` for SwiftUI bindings
