@@ -334,9 +334,12 @@ struct ContentView: View {
         if keyStr == controls.moveLeft  { viewModel.moveLeft(); return .handled }
         if keyStr == controls.moveRight { viewModel.moveRight(); return .handled }
         if keyStr == controls.rotate    { viewModel.rotate(); return .handled }
+        if keyStr == controls.resume, viewModel.displayState == .paused {
+            viewModel.resume()
+            return .handled
+        }
         if keyStr == controls.hardDrop {
-            if viewModel.displayState == .paused { viewModel.resume() }
-            else { viewModel.hardDrop() }
+            viewModel.hardDrop()
             return .handled
         }
         if keyStr == controls.pause { viewModel.pause(); return .handled }

@@ -20,10 +20,10 @@ enum KeybindingProfile: String, Codable, CaseIterable, Sendable {
         switch self {
         case .vim:
             return ["moveLeft": "j", "moveRight": "l", "rotate": "k",
-                    "hardDrop": "Space", "pause": "Escape", "stop": "q"]
+                    "hardDrop": "Space", "resume": "Space", "pause": "Escape", "stop": "q"]
         case .arrows:
             return ["moveLeft": "LeftArrow", "moveRight": "RightArrow", "rotate": "UpArrow",
-                    "hardDrop": "Space", "pause": "Escape", "stop": "q"]
+                    "hardDrop": "Space", "resume": "Space", "pause": "Escape", "stop": "q"]
         case .custom:
             return [:]
         }
@@ -41,6 +41,7 @@ final class ControlsConfig: Codable {
     var moveRight: String = "l"
     var rotate: String = "k"
     var hardDrop: String = "Space"
+    var resume: String = "Space"
     var pause: String = "Escape"
     var stop: String = "q"
 
@@ -50,6 +51,7 @@ final class ControlsConfig: Codable {
         ("Rotate",     \.rotate),
         ("Move Right", \.moveRight),
         ("Hard Drop",  \.hardDrop),
+        ("Resume",     \.resume),
         ("Pause",      \.pause),
         ("Stop",       \.stop),
     ]
@@ -63,6 +65,7 @@ final class ControlsConfig: Codable {
             case "moveRight": moveRight = value
             case "rotate":    rotate    = value
             case "hardDrop":  hardDrop  = value
+            case "resume":    resume    = value
             case "pause":     pause     = value
             case "stop":      stop      = value
             default: break
@@ -73,7 +76,7 @@ final class ControlsConfig: Codable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case profile, moveLeft, moveRight, rotate, hardDrop, pause, stop
+        case profile, moveLeft, moveRight, rotate, hardDrop, resume, pause, stop
     }
 
     required init(from decoder: Decoder) throws {
@@ -83,6 +86,7 @@ final class ControlsConfig: Codable {
         moveRight = try container.decodeIfPresent(String.self, forKey: .moveRight) ?? moveRight
         rotate    = try container.decodeIfPresent(String.self, forKey: .rotate)    ?? rotate
         hardDrop  = try container.decodeIfPresent(String.self, forKey: .hardDrop)  ?? hardDrop
+        resume    = try container.decodeIfPresent(String.self, forKey: .resume)    ?? resume
         pause     = try container.decodeIfPresent(String.self, forKey: .pause)     ?? pause
         stop      = try container.decodeIfPresent(String.self, forKey: .stop)      ?? stop
     }
@@ -94,6 +98,7 @@ final class ControlsConfig: Codable {
         try container.encode(moveRight, forKey: .moveRight)
         try container.encode(rotate,    forKey: .rotate)
         try container.encode(hardDrop,  forKey: .hardDrop)
+        try container.encode(resume,    forKey: .resume)
         try container.encode(pause,     forKey: .pause)
         try container.encode(stop,      forKey: .stop)
     }
@@ -162,6 +167,7 @@ final class ControlsConfig: Codable {
         moveRight = decoded.moveRight
         rotate    = decoded.rotate
         hardDrop  = decoded.hardDrop
+        resume    = decoded.resume
         pause     = decoded.pause
         stop      = decoded.stop
     }
