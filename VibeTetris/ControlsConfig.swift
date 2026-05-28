@@ -1,10 +1,42 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Keybinding Profile
+
+enum KeybindingProfile: String, Codable, CaseIterable, Sendable {
+    case vim
+    case arrows
+    case custom
+
+    var label: String {
+        switch self {
+        case .vim:    return "Vim style"
+        case .arrows: return "Arrows"
+        case .custom: return "Custom"
+        }
+    }
+
+    var presets: [String: String] {
+        switch self {
+        case .vim:
+            return ["moveLeft": "j", "moveRight": "l", "rotate": "k",
+                    "hardDrop": "Space", "pause": "Escape", "stop": "q"]
+        case .arrows:
+            return ["moveLeft": "LeftArrow", "moveRight": "RightArrow", "rotate": "UpArrow",
+                    "hardDrop": "Space", "pause": "Escape", "stop": "q"]
+        case .custom:
+            return [:]
+        }
+    }
+}
+
+// MARK: - ControlsConfig
+
 /// User-configurable key bindings for macOS controls.
 /// Persisted to `controls.json` in the app's Application Support directory.
 @Observable
 final class ControlsConfig: Codable {
+    var profile: KeybindingProfile = .custom
     var moveLeft: String = "j"
     var moveRight: String = "l"
     var rotate: String = "k"
@@ -12,12 +44,41 @@ final class ControlsConfig: Codable {
     var pause: String = "Escape"
     var stop: String = "q"
 
+    /// All bindings as label → key pairs, in display order.
+    static let allBindings: [(label: String, keyPath: ReferenceWritableKeyPath<ControlsConfig, String>)] = [
+        ("Move Left",  \.moveLeft),
+        ("Rotate",     \.rotate),
+        ("Move Right", \.moveRight),
+        ("Hard Drop",  \.hardDrop),
+        ("Pause",      \.pause),
+        ("Stop",       \.stop),
+    ]
+
+    /// Apply a preset and switch profile.
+    func applyPreset(_ preset: KeybindingProfile) {
+        profile = preset
+        for (key, value) in preset.presets {
+            switch key {
+            case "moveLeft":  moveLeft  = value
+            case "moveRight": moveRight = value
+            case "rotate":    rotate    = value
+            case "hardDrop":  hardDrop  = value
+            case "pause":     pause     = value
+            case "stop":      stop      = value
+            default: break
+            }
+        }
+    }
+
+    // MARK: - Codable
+
     enum CodingKeys: String, CodingKey {
-        case moveLeft, moveRight, rotate, hardDrop, pause, stop
+        case profile, moveLeft, moveRight, rotate, hardDrop, pause, stop
     }
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        profile   = try container.decodeIfPresent(KeybindingProfile.self, forKey: .profile) ?? .custom
         moveLeft  = try container.decodeIfPresent(String.self, forKey: .moveLeft)  ?? moveLeft
         moveRight = try container.decodeIfPresent(String.self, forKey: .moveRight) ?? moveRight
         rotate    = try container.decodeIfPresent(String.self, forKey: .rotate)    ?? rotate
@@ -28,6 +89,7 @@ final class ControlsConfig: Codable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(profile,   forKey: .profile)
         try container.encode(moveLeft,  forKey: .moveLeft)
         try container.encode(moveRight, forKey: .moveRight)
         try container.encode(rotate,    forKey: .rotate)
@@ -36,7 +98,8 @@ final class ControlsConfig: Codable {
         try container.encode(stop,      forKey: .stop)
     }
 
-    /// Human-readable label for a stored key string.
+    // MARK: - Display Helpers
+
     static func displayName(for key: String) -> String {
         switch key {
         case "Space":   return "Space"
@@ -51,7 +114,6 @@ final class ControlsConfig: Codable {
         }
     }
 
-    /// Convert a SwiftUI `KeyEquivalent` to a config string suitable for storage and matching.
     static func keyString(from key: KeyEquivalent) -> String {
         if key == .space     { return "Space" }
         if key == .escape    { return "Escape" }
@@ -62,6 +124,22 @@ final class ControlsConfig: Codable {
         if key == .leftArrow { return "LeftArrow" }
         if key == .rightArrow{ return "RightArrow" }
         return String(key.character).lowercased()
+    }
+
+    // MARK: - Conflict Detection
+
+    /// Returns pairs of action labels that share the same key binding.
+    var conflicts: [(String, String)] {
+        let entries = Self.allBindings.map { ($0.label, self[keyPath: $0.keyPath]) }
+        var result: [(String, String)] = []
+        for i in entries.indices {
+            for j in (i + 1)..<entries.count {
+                if entries[i].1 == entries[j].1 {
+                    result.append((entries[i].0, entries[j].0))
+                }
+            }
+        }
+        return result
     }
 
     // MARK: - Persistence
@@ -79,6 +157,7 @@ final class ControlsConfig: Codable {
     func load() {
         guard let data = try? Data(contentsOf: Self.fileURL),
               let decoded = try? JSONDecoder().decode(Self.self, from: data) else { return }
+        profile   = decoded.profile
         moveLeft  = decoded.moveLeft
         moveRight = decoded.moveRight
         rotate    = decoded.rotate

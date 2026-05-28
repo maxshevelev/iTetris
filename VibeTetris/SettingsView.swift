@@ -81,13 +81,40 @@ struct SettingsView: View {
 
     private var controlsTab: some View {
         Form {
+            Section {
+                Picker("Profile", selection: $controls.profile) {
+                    ForEach(KeybindingProfile.allCases, id: \.self) { p in
+                        Text(p.label).tag(p)
+                    }
+                }
+                .onChange(of: controls.profile) { _, newValue in
+                    controls.applyPreset(newValue)
+                    controls.save()
+                }
+            }
+
+            if !controls.conflicts.isEmpty {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Conflicting keys", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                            .font(.subheadline.bold())
+                        ForEach(controls.conflicts, id: \.0) { a, b in
+                            Text("\(a) and \(b) are bound to the same key")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
             Section("Key Bindings") {
-                KeyField(label: "Move Left",  key: $controls.moveLeft)
-                KeyField(label: "Move Right", key: $controls.moveRight)
-                KeyField(label: "Rotate",     key: $controls.rotate)
-                KeyField(label: "Hard Drop",  key: $controls.hardDrop)
-                KeyField(label: "Pause",      key: $controls.pause)
-                KeyField(label: "Stop",       key: $controls.stop)
+                ForEach(ControlsConfig.allBindings, id: \.label) { binding in
+                    KeyField(label: binding.label, key: Binding(
+                        get: { controls[keyPath: binding.keyPath] },
+                        set: { controls[keyPath: binding.keyPath] = $0 }
+                    ))
+                }
             }
         }
         .formStyle(.grouped)

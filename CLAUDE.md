@@ -26,7 +26,7 @@
 
 ## Conventions & Constraints
 
-- **Configurable keybindings (macOS).** `ControlsConfig` reads/writes `controls.json` in the app's Application Support directory. The Settings window's Controls tab uses `NSEvent` monitoring to capture key presses at runtime.
+- **Configurable keybindings (macOS).** `ControlsConfig` reads/writes `controls.json` with three profiles (Vim style, Arrows, Custom). Conflict detection warns when two actions share the same key.
 - **No magic numbers.** All sizes, opacities, durations, and colors live in `Constants.swift` organized by sub-enum.
 - **Three-layer board rendering.** `GridBackgroundView` + `LockedBlocksView` use `.drawingGroup()` caching; only the ghost/active-piece `Canvas` redraws every tick. Never iterate the full grid on movement ticks.
 - **Event processing is order-independent.** `GameViewModel.apply()` uses a two-pass collector-then-apply pattern. Pass 1 gathers values without side effects; Pass 2 applies in a strict logical order (dimensions → grid snapshot → grid → piece → …). Never rely on `Set` iteration order.
