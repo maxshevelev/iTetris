@@ -84,7 +84,7 @@ enum Constants {
 
         enum Settings {
             static let windowWidth: CGFloat = 320
-            static let windowMinHeight: CGFloat = 300
+            static let windowMinHeight: CGFloat = 400
             static let levelRange = 1...10
         }
 
