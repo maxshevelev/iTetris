@@ -20,11 +20,13 @@
 | `InfoPanelView.swift` | Score, level, lines, next-piece preview, Stop button |
 | `PiecePreviewView.swift` | `Canvas` rendering of the next-piece miniature (4×4 grid) |
 | `ObservableSettings.swift` | Thin wrapper around `any GameSettings`, exposing writable properties for SwiftUI |
-| `SettingsView.swift` | macOS Settings window: player name, gameplay toggles, animation toggles, initial level |
+| `ControlsConfig.swift` | `@Observable` class for configurable keybindings, persisted to `controls.json` |
+| `SettingsView.swift` | macOS Settings window: General tab (player name, gameplay, animations) + Controls tab (key capture) |
 | `Constants.swift` | Centralized namespace: `Grid`, `Colors` (app + line-clear fire), `Layout` (board/info-panel/hard-drop/overlay/settings dimensions), `Animation` (phase thresholds, flash timing), `Input`, `Gameplay` |
 
 ## Conventions & Constraints
 
+- **Configurable keybindings (macOS).** `ControlsConfig` reads/writes `controls.json` in the app's Application Support directory. The Settings window's Controls tab uses `NSEvent` monitoring to capture key presses at runtime.
 - **No magic numbers.** All sizes, opacities, durations, and colors live in `Constants.swift` organized by sub-enum.
 - **Three-layer board rendering.** `GridBackgroundView` + `LockedBlocksView` use `.drawingGroup()` caching; only the ghost/active-piece `Canvas` redraws every tick. Never iterate the full grid on movement ticks.
 - **Event processing is order-independent.** `GameViewModel.apply()` uses a two-pass collector-then-apply pattern. Pass 1 gathers values without side effects; Pass 2 applies in a strict logical order (dimensions → grid snapshot → grid → piece → …). Never rely on `Set` iteration order.

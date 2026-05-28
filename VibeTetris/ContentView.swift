@@ -6,9 +6,11 @@ import AppKit
 
 struct ContentView: View {
     @State private var viewModel: GameViewModel
+    let controls: ControlsConfig
 
-    init(settings: ObservableSettings = ObservableSettings()) {
+    init(settings: ObservableSettings = ObservableSettings(), controls: ControlsConfig = ControlsConfig()) {
         self._viewModel = State(initialValue: GameViewModel(settings: settings))
+        self.controls = controls
     }
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
@@ -327,18 +329,20 @@ struct ContentView: View {
     // MARK: - Keyboard (macOS)
 
     private func handleKeyPress(_ press: KeyPress) -> KeyPress.Result {
-        switch press.key {
-        case .init("j"): viewModel.moveLeft()
-        case .init("l"): viewModel.moveRight()
-        case .init("k"): viewModel.rotate()
-        case .space:
+        let keyStr = ControlsConfig.keyString(from: press.key)
+
+        if keyStr == controls.moveLeft  { viewModel.moveLeft(); return .handled }
+        if keyStr == controls.moveRight { viewModel.moveRight(); return .handled }
+        if keyStr == controls.rotate    { viewModel.rotate(); return .handled }
+        if keyStr == controls.hardDrop {
             if viewModel.displayState == .paused { viewModel.resume() }
             else { viewModel.hardDrop() }
-        case .escape: viewModel.pause()
-        case .init("q"): viewModel.stop()
-        default: return .ignored
+            return .handled
         }
-        return .handled
+        if keyStr == controls.pause { viewModel.pause(); return .handled }
+        if keyStr == controls.stop  { viewModel.stop(); return .handled }
+
+        return .ignored
     }
 }
 

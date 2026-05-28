@@ -10,10 +10,11 @@ struct VibeTetrisApp: App {
     #endif
 
     @State private var settings = ObservableSettings()
+    @State private var controls = ControlsConfig()
 
     var body: some Scene {
         WindowGroup {
-            ContentView(settings: settings)
+            ContentView(settings: settings, controls: controls)
         }
         #if os(macOS)
         .defaultSize(width: Constants.Layout.AppWindow.defaultWidth, height: Constants.Layout.AppWindow.defaultHeight)
@@ -22,7 +23,7 @@ struct VibeTetrisApp: App {
 
         #if os(macOS)
         Settings {
-            SettingsView(settings: settings)
+            SettingsView(settings: settings, controls: controls)
         }
         #endif
     }
