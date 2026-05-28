@@ -134,8 +134,11 @@ final class ControlsConfig: Codable {
     // MARK: - Conflict Detection
 
     /// Returns pairs of action labels that share the same key binding.
+    /// Only movement and drop actions are conflict-checked — resume, pause, and stop are excluded
+    /// since they are context-sensitive (polar opposite of another action, or gated on game state).
     var conflicts: [(String, String)] {
-        let entries = Self.allBindings.map { ($0.label, self[keyPath: $0.keyPath]) }
+        let checked = Self.allBindings.filter { $0.label != "Resume" && $0.label != "Pause" && $0.label != "Stop" }
+        let entries = checked.map { ($0.label, self[keyPath: $0.keyPath]) }
         var result: [(String, String)] = []
         for i in entries.indices {
             for j in (i + 1)..<entries.count {
