@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var hardDropAnimated: Bool
     @State private var lineClearAnimated: Bool
     @State private var initialLevel: Int
+    @State private var isApplyingPreset = false
 
     init(settings: ObservableSettings, controls: ControlsConfig) {
         self.settings = settings
@@ -50,12 +51,12 @@ struct SettingsView: View {
         .onChange(of: initialLevel) { _, newValue in
             settings.initialLevel = newValue
         }
-        .onChange(of: controls.moveLeft)  { _, _ in controls.save() }
-        .onChange(of: controls.moveRight) { _, _ in controls.save() }
-        .onChange(of: controls.rotate)    { _, _ in controls.save() }
-        .onChange(of: controls.hardDrop)  { _, _ in controls.save() }
-        .onChange(of: controls.pause)     { _, _ in controls.save() }
-        .onChange(of: controls.stop)      { _, _ in controls.save() }
+        .onChange(of: controls.moveLeft)  { _, _ in guard !isApplyingPreset else { return }; controls.profile = .custom; controls.save() }
+        .onChange(of: controls.moveRight) { _, _ in guard !isApplyingPreset else { return }; controls.profile = .custom; controls.save() }
+        .onChange(of: controls.rotate)    { _, _ in guard !isApplyingPreset else { return }; controls.profile = .custom; controls.save() }
+        .onChange(of: controls.hardDrop)  { _, _ in guard !isApplyingPreset else { return }; controls.profile = .custom; controls.save() }
+        .onChange(of: controls.pause)     { _, _ in guard !isApplyingPreset else { return }; controls.profile = .custom; controls.save() }
+        .onChange(of: controls.stop)      { _, _ in guard !isApplyingPreset else { return }; controls.profile = .custom; controls.save() }
     }
 
     private var generalTab: some View {
@@ -88,8 +89,10 @@ struct SettingsView: View {
                     }
                 }
                 .onChange(of: controls.profile) { _, newValue in
+                    isApplyingPreset = true
                     controls.applyPreset(newValue)
                     controls.save()
+                    isApplyingPreset = false
                 }
             }
 
