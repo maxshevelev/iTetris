@@ -24,6 +24,7 @@ struct ContentView: View {
     }
     #endif
 
+    @Environment(\.colorScheme) var colorScheme
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
     @State private var isAnimatingHardDrop = false
@@ -36,11 +37,17 @@ struct ContentView: View {
     @State private var showSettings = false
     #endif
 
+    // MARK: - Computed Colors
+
+    private var appBackground: Color {
+        Constants.Colors.color(Constants.Colors.appBackgroundLight, Constants.Colors.appBackgroundDark, scheme: colorScheme)
+    }
+
     // MARK: - Body
 
     var body: some View {
         ZStack {
-            Constants.Colors.cream.ignoresSafeArea()
+            appBackground.ignoresSafeArea()
 
             #if os(iOS)
             iOSBody
@@ -70,7 +77,7 @@ struct ContentView: View {
 
     private var pauseOverlay: some View {
         ZStack {
-            Constants.Colors.cream.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
+            appBackground.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
             VStack(spacing: Constants.Layout.Overlay.vStackSpacing) {
                 Text("PAUSED")
                     .font(.largeTitle.bold())
@@ -83,7 +90,7 @@ struct ContentView: View {
 
     private var gameOverOverlay: some View {
         ZStack {
-            Constants.Colors.cream.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
+            appBackground.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
             VStack(spacing: Constants.Layout.Overlay.vStackSpacing) {
                 Text("GAME OVER")
                     .font(.largeTitle.bold())
