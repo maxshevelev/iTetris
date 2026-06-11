@@ -92,6 +92,22 @@ enum Constants {
             static let defaultWidth: CGFloat = 480
             static let defaultHeight: CGFloat = 640
         }
+
+        // MARK: - iOS Layout
+
+        enum iOS {
+            // Top bar
+            static let topBarPadding: CGFloat = 16
+            static let topBarPaddingVertical: CGFloat = 12
+            static let topBarPreviewSize: CGFloat = 40
+
+            // Board — constrained width for breathing room on sides
+            static let boardMaxWidth: CGFloat = 240
+
+            // Bottom bar
+            static let bottomBarPadding: CGFloat = 20
+            static let bottomBarPaddingVertical: CGFloat = 12
+        }
     }
 
     // MARK: - Animation

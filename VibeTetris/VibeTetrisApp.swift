@@ -14,7 +14,11 @@ struct VibeTetrisApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if os(macOS)
             ContentView(settings: settings, controls: controls)
+            #else
+            ContentView(settings: settings)
+            #endif
         }
         #if os(macOS)
         .defaultSize(width: Constants.Layout.AppWindow.defaultWidth, height: Constants.Layout.AppWindow.defaultHeight)

@@ -24,6 +24,10 @@
 | `SettingsView.swift` | macOS Settings window: General tab (player name, gameplay, animations) + Controls tab (key capture) |
 | `Constants.swift` | Centralized namespace: `Grid`, `Colors` (app + line-clear fire), `Layout` (board/info-panel/hard-drop/overlay/settings dimensions), `Animation` (phase thresholds, flash timing), `Input`, `Gameplay` |
 
+## Build
+
+- **iPhone build destination:** `platform=iOS Simulator,name=iPhone 17 Pro` — always use this for iOS builds.
+
 ## Conventions & Constraints
 
 - **Configurable keybindings (macOS).** `ControlsConfig` reads/writes `controls.json` with three profiles (Vim style, Arrows, Custom). Conflict detection warns when two actions share the same key.
