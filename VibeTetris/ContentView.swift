@@ -128,9 +128,7 @@ struct ContentView: View {
             HStack {
                 PiecePreviewView(blocks: viewModel.nextPieceBlocks, color: viewModel.nextPieceColor)
                     .frame(width: Constants.Layout.iOS.topBarPreviewSize, height: Constants.Layout.iOS.topBarPreviewSize)
-
-                Spacer(minLength: 0)
-
+                Spacer()
                 Button(viewModel.displayState == .paused ? "Resume" : "Pause", action: {
                     if viewModel.displayState == .paused {
                         viewModel.resume()
@@ -155,7 +153,6 @@ struct ContentView: View {
                     gridHeight: viewModel.gridHeight
                 )
                 .aspectRatio(CGFloat(viewModel.gridWidth) / CGFloat(viewModel.gridHeight), contentMode: .fit)
-                .frame(maxWidth: Constants.Layout.iOS.boardMaxWidth, maxHeight: .infinity)
                 .overlay {
                     GeometryReader { geo in
                         if isAnimatingLineClear {
