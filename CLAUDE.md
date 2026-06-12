@@ -14,7 +14,7 @@
 | File | Role |
 |---|---|
 | `VibeTetrisApp.swift` | `@main` entry point, macOS app delegate, Settings scene |
-| `ContentView.swift` | Root view with platform-conditional bodies: `macOSBody` (board + info panel) and `iOSBody` (nav bar with Settings + Pause, centered next-piece preview, centered board, bottom stats bar). Animation overlays, gestures, keyboard handling |
+| `ContentView.swift` | Root view with platform-conditional bodies: `macOSBody` (board + info panel) and `iOSBody` (top bar with Settings + next piece + Pause, centered board, bottom stats bar). Animation overlays, gestures, keyboard handling |
 | `GameViewModel.swift` | Bridges TetrisCore event stream to `@Observable` UI state. Two-pass `apply()`: collect → strict-order apply. Hard-drop detection. |
 | `TetrisBoardView.swift` | Three-layer `Canvas` board rendering: background grid (cached), locked blocks (cached), ghost + active piece (dynamic) |
 | `InfoPanelView.swift` | Score, level, lines, next-piece preview, Stop button (macOS only) |
@@ -40,8 +40,8 @@
 - **Colors** are defined in `Constants.Colors`; never inline `Color(red:green:blue:)` in views.
 - **TetrominoColor → SwiftUI Color** mapping lives in `GameViewModel.swift` as a single `swiftUIColor` extension.
 - **`#Preview`** macros are included at the bottom of each view file.
-- **iOS layout.** `iOSBody` uses a four-section vertical stack: nav bar (Settings gear button left, Pause/Resume button right), centered next-piece preview, centered board with breathing room, bottom stats bar (Level, Score, Lines). All dimensions in `Constants.Layout.iOS`.
-- **iOS Settings.** `IOSSettingsView` presents as a `.sheet()` from the nav bar's Settings button. Uses `@Bindable` for `ObservableSettings` projected `$` bindings.
+- **iOS layout.** `iOSBody` uses a three-section vertical stack: top bar (Settings gear button left, next-piece preview center, Pause/Resume button right), centered board with breathing room, bottom stats bar (Level, Score, Lines). All dimensions in `Constants.Layout.iOS`.
+- **iOS Settings.** `IOSSettingsView` presents as a `.sheet()` from the Settings button. Tapping Settings auto-pauses the game. Uses `@Bindable` for `ObservableSettings` projected `$` bindings. Guarded with `#if os(iOS)`.
 
 ## Active Tasks & Status
 
