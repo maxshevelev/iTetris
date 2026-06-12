@@ -117,7 +117,7 @@ enum Constants {
         enum iOS {
             // Top bar
             static let topBarPadding: CGFloat = 40
-            static let topBarPaddingVertical: CGFloat = 12
+            static let topBarPaddingVertical: CGFloat = 10
             static let topBarPreviewSize: CGFloat = 80
 
             // Bottom bar
