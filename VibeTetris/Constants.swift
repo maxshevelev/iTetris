@@ -14,12 +14,30 @@ enum Constants {
     // MARK: - Colors
 
     enum Colors {
+        /// Resolves the given light/dark colors based on the current color scheme.
+        static func color(_ light: Color, _ dark: Color, scheme: ColorScheme) -> Color {
+            scheme == .dark ? dark : light
+        }
+
         // App background
-        static let cream = Color(red: 0.992, green: 0.973, blue: 0.918)
-        static let creamDark = Color(red: 0.949, green: 0.918, blue: 0.847)
+        static let appBackgroundLight = Color(red: 0.992, green: 0.973, blue: 0.918)
+        static let appBackgroundDark = Color(red: 0.12, green: 0.14, blue: 0.18)
+
+        // Info panel background
+        static let panelBackgroundLight = Color.white
+        static let panelBackgroundDark = Color(red: 0.18, green: 0.20, blue: 0.25)
+
+        // Board cell background
+        static let boardCellLight = Color.white
+        static let boardCellDark = Color(red: 0.15, green: 0.17, blue: 0.22)
 
         // Ghost piece — light shadow showing landing position
-        static let ghostPiece = Color.gray.opacity(0.22)
+        static let ghostPieceLight = Color.gray.opacity(0.22)
+        static let ghostPieceDark = Color.white.opacity(0.15)
+
+        // Grid lines on the board
+        static let boardGridLineLight = Color.gray.opacity(0.18)
+        static let boardGridLineDark = Color.white.opacity(0.08)
 
         // Line-clear fire effect
         enum LineClear {
@@ -48,6 +66,7 @@ enum Constants {
             static let cornerRadius: CGFloat = 4
             static let borderOpacity: CGFloat = 0.4
             static let borderWidth: CGFloat = 1
+
             static let gridLineOpacity: CGFloat = 0.18
             static let gridLineWidth: CGFloat = 0.5
         }

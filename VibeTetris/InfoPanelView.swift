@@ -9,6 +9,12 @@ struct InfoPanelView: View {
     let nextPieceColor: TetrominoColor
     var onStop: (() -> Void)?
 
+    @Environment(\.colorScheme) var colorScheme
+
+    private var panelBg: Color {
+        Constants.Colors.color(Constants.Colors.panelBackgroundLight, Constants.Colors.panelBackgroundDark, scheme: colorScheme)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Constants.Layout.InfoPanel.sectionSpacing) {
             VStack(alignment: .leading, spacing: Constants.Layout.InfoPanel.fieldLabelSpacing) {
@@ -49,7 +55,7 @@ struct InfoPanelView: View {
             }
         }
         .padding(Constants.Layout.InfoPanel.padding)
-        .background(.white)
+        .background(panelBg)
         .clipShape(RoundedRectangle(cornerRadius: Constants.Layout.InfoPanel.cornerRadius))
         .shadow(color: .black.opacity(Constants.Layout.InfoPanel.shadowOpacity), radius: Constants.Layout.InfoPanel.shadowRadius, y: Constants.Layout.InfoPanel.shadowY)
     }

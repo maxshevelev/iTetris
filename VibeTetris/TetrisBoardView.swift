@@ -1,10 +1,20 @@
 import SwiftUI
 import TetrisCore
 
-/// Cached grid background — white cells with subtle grid lines.
+/// Cached grid background — cells with subtle grid lines.
 private struct GridBackgroundView: View {
     let gridWidth: Int
     let gridHeight: Int
+
+    @Environment(\.colorScheme) var colorScheme
+
+    private var cellColor: Color {
+        Constants.Colors.color(Constants.Colors.boardCellLight, Constants.Colors.boardCellDark, scheme: colorScheme)
+    }
+
+    private var gridLineColor: Color {
+        Constants.Colors.color(Constants.Colors.boardGridLineLight, Constants.Colors.boardGridLineDark, scheme: colorScheme)
+    }
 
     var body: some View {
         Canvas { context, size in
@@ -22,10 +32,10 @@ private struct GridBackgroundView: View {
                         width: cellSize,
                         height: cellSize
                     )
-                    context.fill(Path(rect), with: .color(.white))
+                    context.fill(Path(rect), with: .color(cellColor))
                     context.stroke(
                         Path(rect),
-                        with: .color(.gray.opacity(Constants.Layout.Board.gridLineOpacity)),
+                        with: .color(gridLineColor),
                         lineWidth: Constants.Layout.Board.gridLineWidth
                     )
                 }
@@ -75,6 +85,12 @@ struct TetrisBoardView: View {
     let gridWidth: Int
     let gridHeight: Int
 
+    @Environment(\.colorScheme) var colorScheme
+
+    private var ghostColor: Color {
+        Constants.Colors.color(Constants.Colors.ghostPieceLight, Constants.Colors.ghostPieceDark, scheme: colorScheme)
+    }
+
     var body: some View {
         ZStack {
             // Layer 1: grid background (cached via drawingGroup)
@@ -112,7 +128,7 @@ struct TetrisBoardView: View {
                 for block in ghostPieceBlocks {
                     guard block.x >= 0, block.x < gridWidth,
                           block.y >= 0, block.y < gridHeight else { continue }
-                    fillBlock(block, Constants.Colors.ghostPiece)
+                    fillBlock(block, ghostColor)
                 }
 
                 // Active piece

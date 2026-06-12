@@ -21,6 +21,7 @@ struct ContentView: View {
     }
     #endif
 
+    @Environment(\.colorScheme) var colorScheme
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
     @State private var isAnimatingHardDrop = false
@@ -30,11 +31,17 @@ struct ContentView: View {
     @FocusState private var isFocused: Bool
     #endif
 
+    // MARK: - Computed Colors
+
+    private var appBackground: Color {
+        Constants.Colors.color(Constants.Colors.appBackgroundLight, Constants.Colors.appBackgroundDark, scheme: colorScheme)
+    }
+
     // MARK: - Body
 
     var body: some View {
         ZStack {
-            Constants.Colors.cream.ignoresSafeArea()
+            appBackground.ignoresSafeArea()
 
             #if os(iOS)
             iOSBody
@@ -64,7 +71,7 @@ struct ContentView: View {
 
     private var pauseOverlay: some View {
         ZStack {
-            Constants.Colors.cream.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
+            appBackground.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
             VStack(spacing: Constants.Layout.Overlay.vStackSpacing) {
                 Text("PAUSED")
                     .font(.largeTitle.bold())
@@ -77,7 +84,7 @@ struct ContentView: View {
 
     private var gameOverOverlay: some View {
         ZStack {
-            Constants.Colors.cream.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
+            appBackground.opacity(Constants.Layout.Overlay.backgroundOpacity).ignoresSafeArea()
             VStack(spacing: Constants.Layout.Overlay.vStackSpacing) {
                 Text("GAME OVER")
                     .font(.largeTitle.bold())
@@ -163,11 +170,12 @@ struct ContentView: View {
                         }
                     }
                 }
-
-                Rectangle()
-                    .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
-                    .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
-                    .allowsHitTesting(false)
+                .overlay {
+                    Rectangle()
+                        .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
+                        .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
+                        .allowsHitTesting(false)
+                }
             }
 
             // Bottom bar: level · score · lines
@@ -307,16 +315,16 @@ struct ContentView: View {
                     }
                 }
             }
-            .padding(.vertical, Constants.Layout.verticalPadding)
-            .gesture(swipeGesture)
-            .simultaneousGesture(rotateTap)
-            .simultaneousGesture(pauseLongPress)
             .overlay {
                 Rectangle()
                     .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
                     .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
                     .allowsHitTesting(false)
             }
+            .padding(.vertical, Constants.Layout.verticalPadding)
+            .gesture(swipeGesture)
+            .simultaneousGesture(rotateTap)
+            .simultaneousGesture(pauseLongPress)
 
             InfoPanelView(
                 score: viewModel.score,
