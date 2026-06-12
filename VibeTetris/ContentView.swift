@@ -16,7 +16,10 @@ struct ContentView: View {
         self.controls = controls
     }
     #else
+    let settings: ObservableSettings
+
     init(settings: ObservableSettings = ObservableSettings()) {
+        self.settings = settings
         self._viewModel = State(initialValue: GameViewModel(settings: settings))
     }
     #endif
@@ -29,6 +32,9 @@ struct ContentView: View {
     @State private var isAnimatingLineClear = false
     #if os(macOS)
     @FocusState private var isFocused: Bool
+    #endif
+    #if os(iOS)
+    @State private var showSettings = false
     #endif
 
     // MARK: - Computed Colors
@@ -131,11 +137,17 @@ struct ContentView: View {
     #if os(iOS)
     private var iOSBody: some View {
         VStack(spacing: 0) {
-            // Top bar: next piece (left) + pause button (right)
+            // Nav bar: Settings (left) + Pause (right)
             HStack {
-                PiecePreviewView(blocks: viewModel.nextPieceBlocks, color: viewModel.nextPieceColor)
-                    .frame(width: Constants.Layout.iOS.topBarPreviewSize, height: Constants.Layout.iOS.topBarPreviewSize)
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.bordered)
+
                 Spacer()
+
                 Button(viewModel.displayState == .paused ? "Resume" : "Pause", action: {
                     if viewModel.displayState == .paused {
                         viewModel.resume()
@@ -147,6 +159,11 @@ struct ContentView: View {
             }
             .padding(.horizontal, Constants.Layout.iOS.topBarPadding)
             .padding(.vertical, Constants.Layout.iOS.topBarPaddingVertical)
+
+            // Next piece preview — centered
+            PiecePreviewView(blocks: viewModel.nextPieceBlocks, color: viewModel.nextPieceColor)
+                .frame(width: Constants.Layout.iOS.topBarPreviewSize, height: Constants.Layout.iOS.topBarPreviewSize)
+                .padding(.vertical, Constants.Layout.iOS.topBarPaddingVertical)
 
             // Board — constrained, centered with breathing room
             ZStack {
@@ -191,6 +208,9 @@ struct ContentView: View {
         .gesture(swipeGesture)
         .simultaneousGesture(rotateTap)
         .simultaneousGesture(pauseLongPress)
+        .sheet(isPresented: $showSettings) {
+            IOSSettingsView(settings: settings)
+        }
         .onAppear {
             viewModel.start()
         }
