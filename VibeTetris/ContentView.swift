@@ -146,10 +146,10 @@ struct ContentView: View {
                     Image(systemName: "gearshape")
                 }
                 .buttonStyle(.bordered)
-
+                Spacer()
                 PiecePreviewView(blocks: viewModel.nextPieceBlocks, color: viewModel.nextPieceColor)
                     .frame(width: Constants.Layout.iOS.topBarPreviewSize, height: Constants.Layout.iOS.topBarPreviewSize)
-
+                Spacer()
                 Button(viewModel.displayState == .paused ? "Resume" : "Pause", action: {
                     if viewModel.displayState == .paused {
                         viewModel.resume()
