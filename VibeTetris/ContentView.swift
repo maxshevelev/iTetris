@@ -16,7 +16,10 @@ struct ContentView: View {
         self.controls = controls
     }
     #else
+    let settings: ObservableSettings
+
     init(settings: ObservableSettings = ObservableSettings()) {
+        self.settings = settings
         self._viewModel = State(initialValue: GameViewModel(settings: settings))
     }
     #endif
@@ -30,6 +33,15 @@ struct ContentView: View {
     #if os(macOS)
     @FocusState private var isFocused: Bool
     #endif
+    #if os(iOS)
+    @State private var showSettings = false
+    #endif
+
+    // MARK: - Computed Colors
+
+    private var appBackground: Color {
+        Constants.Colors.color(Constants.Colors.appBackgroundLight, Constants.Colors.appBackgroundDark, scheme: colorScheme)
+    }
 
     // MARK: - Computed Colors
 
@@ -131,11 +143,19 @@ struct ContentView: View {
     #if os(iOS)
     private var iOSBody: some View {
         VStack(spacing: 0) {
-            // Top bar: next piece (left) + pause button (right)
+            // Top bar: Settings (left), next piece (center), Pause (right)
             HStack {
+                Button {
+                    viewModel.pause()
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.bordered)
+
                 PiecePreviewView(blocks: viewModel.nextPieceBlocks, color: viewModel.nextPieceColor)
                     .frame(width: Constants.Layout.iOS.topBarPreviewSize, height: Constants.Layout.iOS.topBarPreviewSize)
-                Spacer()
+
                 Button(viewModel.displayState == .paused ? "Resume" : "Pause", action: {
                     if viewModel.displayState == .paused {
                         viewModel.resume()
@@ -191,6 +211,9 @@ struct ContentView: View {
         .gesture(swipeGesture)
         .simultaneousGesture(rotateTap)
         .simultaneousGesture(pauseLongPress)
+        .sheet(isPresented: $showSettings) {
+            IOSSettingsView(settings: settings)
+        }
         .onAppear {
             viewModel.start()
         }

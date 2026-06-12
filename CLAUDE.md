@@ -14,15 +14,16 @@
 | File | Role |
 |---|---|
 | `VibeTetrisApp.swift` | `@main` entry point, macOS app delegate, Settings scene |
-| `ContentView.swift` | Root view: board, info panel, animation overlays, gestures, keyboard handling |
-| `GameViewModel.swift` | Bridges TetrisCore event stream to `@Observable` UI state. Two-pass `apply()`: collect → strict-order apply. Ghost piece computation. Hard-drop detection. |
+| `ContentView.swift` | Root view with platform-conditional bodies: `macOSBody` (board + info panel) and `iOSBody` (top bar with Settings + next piece + Pause, centered board, bottom stats bar). Animation overlays, gestures, keyboard handling |
+| `GameViewModel.swift` | Bridges TetrisCore event stream to `@Observable` UI state. Two-pass `apply()`: collect → strict-order apply. Hard-drop detection. |
 | `TetrisBoardView.swift` | Three-layer `Canvas` board rendering: background grid (cached), locked blocks (cached), ghost + active piece (dynamic) |
-| `InfoPanelView.swift` | Score, level, lines, next-piece preview, Stop button |
+| `InfoPanelView.swift` | Score, level, lines, next-piece preview, Stop button (macOS only) |
 | `PiecePreviewView.swift` | `Canvas` rendering of the next-piece miniature (4×4 grid) |
 | `ObservableSettings.swift` | Thin wrapper around `any GameSettings`, exposing writable properties for SwiftUI |
-| `ControlsConfig.swift` | `@Observable` class for configurable keybindings, persisted to `controls.json` |
-| `SettingsView.swift` | macOS Settings window: General tab (player name, gameplay, animations) + Controls tab (key capture) |
-| `Constants.swift` | Centralized namespace: `Grid`, `Colors` (app + line-clear fire), `Layout` (board/info-panel/hard-drop/overlay/settings dimensions), `Animation` (phase thresholds, flash timing), `Input`, `Gameplay` |
+| `ControlsConfig.swift` | `@Observable` class for configurable keybindings, persisted to `controls.json`. Three profiles (Vim style, Arrows, Custom). Conflict detection excludes resume/pause/stop (context-sensitive actions) |
+| `SettingsView.swift` | macOS Settings window: General tab (player name, gameplay, animations) + Controls tab (key capture, profile picker) |
+| `IOSSettingsView.swift` | iOS Settings sheet: Player, Gameplay, Animations sections (no key bindings) |
+| `Constants.swift` | Centralized namespace: `Grid`, `Colors` (app + line-clear fire), `Layout` (board/info-panel/hard-drop/overlay/settings/iOS dimensions), `Animation` (phase thresholds, flash timing), `Input`, `Gameplay` |
 
 ## Build
 
@@ -30,15 +31,17 @@
 
 ## Conventions & Constraints
 
-- **Configurable keybindings (macOS).** `ControlsConfig` reads/writes `controls.json` with three profiles (Vim style, Arrows, Custom). Conflict detection warns when two actions share the same key.
+- **Configurable keybindings (macOS).** `ControlsConfig` reads/writes `controls.json` with three profiles (Vim style, Arrows, Custom). Conflict detection warns when two movement/drop actions share the same key; resume, pause, and stop are excluded (context-sensitive). Auto-switches to Custom profile when an individual key is changed.
 - **No magic numbers.** All sizes, opacities, durations, and colors live in `Constants.swift` organized by sub-enum.
 - **Three-layer board rendering.** `GridBackgroundView` + `LockedBlocksView` use `.drawingGroup()` caching; only the ghost/active-piece `Canvas` redraws every tick. Never iterate the full grid on movement ticks.
 - **Event processing is order-independent.** `GameViewModel.apply()` uses a two-pass collector-then-apply pattern. Pass 1 gathers values without side effects; Pass 2 applies in a strict logical order (dimensions → grid snapshot → grid → piece → …). Never rely on `Set` iteration order.
 - **Animation completion uses `withAnimation(completionCriteria: .logicallyComplete) { } completion: { }`**, not `Task.sleep` buffers.
-- **Ghost piece** is now provided by TetrisCore via `.ghostPieceBlocks` event (no local computation).
+- **Ghost piece** is provided by TetrisCore via `.ghostPieceBlocks` event (no local computation).
 - **Colors** are defined in `Constants.Colors`; never inline `Color(red:green:blue:)` in views.
 - **TetrominoColor → SwiftUI Color** mapping lives in `GameViewModel.swift` as a single `swiftUIColor` extension.
 - **`#Preview`** macros are included at the bottom of each view file.
+- **iOS layout.** `iOSBody` uses a three-section vertical stack: top bar (Settings gear button left, next-piece preview center, Pause/Resume button right), centered board with breathing room, bottom stats bar (Level, Score, Lines). All dimensions in `Constants.Layout.iOS`.
+- **iOS Settings.** `IOSSettingsView` presents as a `.sheet()` from the Settings button. Tapping Settings auto-pauses the game. Uses `@Bindable` for `ObservableSettings` projected `$` bindings. Guarded with `#if os(iOS)`.
 
 ## Active Tasks & Status
 
@@ -52,6 +55,9 @@
 | Review item 4 (Hard-drop overlay off-screen) | ⚠️ Open |
 | Board rendering optimization | ✅ Done — three-layer with drawingGroup() caching |
 | Test coverage | ✅ Done — 13 unit tests for GameViewModel.apply() |
+| Configurable keybindings with profiles | ✅ Done |
+| iOS dedicated layout | ✅ Done |
+| iOS Settings sheet | ✅ Done |
 
 ---
 
