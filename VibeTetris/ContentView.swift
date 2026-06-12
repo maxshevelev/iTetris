@@ -137,16 +137,18 @@ struct ContentView: View {
     #if os(iOS)
     private var iOSBody: some View {
         VStack(spacing: 0) {
-            // Nav bar: Settings (left) + Pause (right)
+            // Top bar: Settings (left), next piece (center), Pause (right)
             HStack {
                 Button {
+                    viewModel.pause()
                     showSettings = true
                 } label: {
                     Image(systemName: "gearshape")
                 }
                 .buttonStyle(.bordered)
 
-                Spacer()
+                PiecePreviewView(blocks: viewModel.nextPieceBlocks, color: viewModel.nextPieceColor)
+                    .frame(width: Constants.Layout.iOS.topBarPreviewSize, height: Constants.Layout.iOS.topBarPreviewSize)
 
                 Button(viewModel.displayState == .paused ? "Resume" : "Pause", action: {
                     if viewModel.displayState == .paused {
@@ -159,11 +161,6 @@ struct ContentView: View {
             }
             .padding(.horizontal, Constants.Layout.iOS.topBarPadding)
             .padding(.vertical, Constants.Layout.iOS.topBarPaddingVertical)
-
-            // Next piece preview — centered
-            PiecePreviewView(blocks: viewModel.nextPieceBlocks, color: viewModel.nextPieceColor)
-                .frame(width: Constants.Layout.iOS.topBarPreviewSize, height: Constants.Layout.iOS.topBarPreviewSize)
-                .padding(.vertical, Constants.Layout.iOS.topBarPaddingVertical)
 
             // Board — constrained, centered with breathing room
             ZStack {
