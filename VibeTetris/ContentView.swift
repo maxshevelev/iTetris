@@ -83,6 +83,8 @@ struct ContentView: View {
                     .font(.largeTitle.bold())
                 Button("Resume") { viewModel.resume() }
                     .buttonStyle(.borderedProminent)
+                Button("New Game") { viewModel.restartGame() }
+                    .buttonStyle(.bordered)
             }
         }
         .onTapGesture { viewModel.resume() }
@@ -150,13 +152,15 @@ struct ContentView: View {
                 PiecePreviewView(blocks: viewModel.nextPieceBlocks, color: viewModel.nextPieceColor)
                     .frame(width: Constants.Layout.iOS.topBarPreviewSize, height: Constants.Layout.iOS.topBarPreviewSize)
                 Spacer()
-                Button(viewModel.displayState == .paused ? "Resume" : "Pause", action: {
+                Button {
                     if viewModel.displayState == .paused {
                         viewModel.resume()
                     } else {
                         viewModel.pause()
                     }
-                })
+                } label: {
+                    Image(systemName: viewModel.displayState == .paused ? "play.fill" : "pause.fill")
+                }
                 .buttonStyle(.bordered)
             }
             .padding(.horizontal, Constants.Layout.iOS.topBarPadding)
