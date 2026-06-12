@@ -170,11 +170,12 @@ struct ContentView: View {
                         }
                     }
                 }
-
-                Rectangle()
-                    .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
-                    .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
-                    .allowsHitTesting(false)
+                .overlay {
+                    Rectangle()
+                        .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
+                        .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
+                        .allowsHitTesting(false)
+                }
             }
 
             // Bottom bar: level · score · lines
@@ -314,16 +315,16 @@ struct ContentView: View {
                     }
                 }
             }
-            .padding(.vertical, Constants.Layout.verticalPadding)
-            .gesture(swipeGesture)
-            .simultaneousGesture(rotateTap)
-            .simultaneousGesture(pauseLongPress)
             .overlay {
                 Rectangle()
                     .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
                     .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
                     .allowsHitTesting(false)
             }
+            .padding(.vertical, Constants.Layout.verticalPadding)
+            .gesture(swipeGesture)
+            .simultaneousGesture(rotateTap)
+            .simultaneousGesture(pauseLongPress)
 
             InfoPanelView(
                 score: viewModel.score,
