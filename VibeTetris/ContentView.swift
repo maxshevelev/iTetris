@@ -35,6 +35,7 @@ struct ContentView: View {
     #endif
     #if os(iOS)
     @State private var showSettings = false
+    @State private var gestureHandler = GestureHandler()
     #endif
 
     // MARK: - Computed Colors
@@ -166,33 +167,82 @@ struct ContentView: View {
             .padding(.horizontal, Constants.Layout.iOS.topBarPadding)
             .padding(.vertical, Constants.Layout.iOS.topBarPaddingVertical)
 
-            // Board — constrained, centered with breathing room
-            ZStack {
-                TetrisBoardView(
-                    grid: isAnimatingLineClear ? (viewModel.lineClearGridSnapshot ?? viewModel.grid) : viewModel.grid,
-                    ghostPieceBlocks: viewModel.ghostPieceBlocks,
-                    pieceBlocks: viewModel.pieceBlocks,
-                    pieceColor: viewModel.pieceColor,
-                    isHardDropping: isAnimatingHardDrop,
-                    gridWidth: viewModel.gridWidth,
-                    gridHeight: viewModel.gridHeight
-                )
-                .aspectRatio(CGFloat(viewModel.gridWidth) / CGFloat(viewModel.gridHeight), contentMode: .fit)
-                .overlay {
-                    GeometryReader { geo in
-                        if isAnimatingLineClear {
-                            iOSLineClearBurnView(size: geo.size)
+            // Playing zone — board + zone indicators + gesture handling
+            GeometryReader { geo in
+                ZStack(alignment: .center) {
+                    // Zone indicators
+                    iOSZoneIndicators(size: geo.size)
+
+                    // Board — constrained, centered with breathing room
+                    ZStack {
+                        TetrisBoardView(
+                            grid: isAnimatingLineClear ? (viewModel.lineClearGridSnapshot ?? viewModel.grid) : viewModel.grid,
+                            ghostPieceBlocks: viewModel.ghostPieceBlocks,
+                            pieceBlocks: viewModel.pieceBlocks,
+                            pieceColor: viewModel.pieceColor,
+                            isHardDropping: isAnimatingHardDrop,
+                            gridWidth: viewModel.gridWidth,
+                            gridHeight: viewModel.gridHeight
+                        )
+                        .aspectRatio(CGFloat(viewModel.gridWidth) / CGFloat(viewModel.gridHeight), contentMode: .fit)
+                        .overlay {
+                            GeometryReader { boardGeo in
+                                if isAnimatingLineClear {
+                                    iOSLineClearBurnView(size: boardGeo.size)
+                                }
+                                if isAnimatingHardDrop {
+                                    iOSHardDropPieceView(size: boardGeo.size)
+                                }
+                            }
                         }
-                        if isAnimatingHardDrop {
-                            iOSHardDropPieceView(size: geo.size)
+                        .overlay {
+                            Rectangle()
+                                .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
+                                .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
+                                .allowsHitTesting(false)
                         }
                     }
-                }
-                .overlay {
-                    Rectangle()
-                        .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
-                        .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
-                        .allowsHitTesting(false)
+
+                    // Gesture overlay — captures all touches for three-zone system
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    gestureHandler.lastTouchX = value.location.x
+                                    let dy = value.translation.height
+                                    // Hard drop takes priority — fire immediately and cancel hold
+                                    if gestureHandler.isHardDrop(dy) {
+                                        viewModel.hardDrop()
+                                        GestureHandler.haptic(.hardDrop)
+                                        gestureHandler.holdStop()
+                                    }
+                                }
+                                .onEnded { value in
+                                    let x = value.startLocation.x
+                                    let dy = value.translation.height
+                                    let dist = sqrt(value.translation.width * value.translation.width + dy * dy)
+
+                                    // Hard drop already handled in onChanged
+                                    if gestureHandler.isHardDrop(dy) {
+                                        return
+                                    }
+
+                                    // Tap — no significant movement, and no hold was active
+                                    if dist < Constants.Input.minimumSwipeDistance, !gestureHandler.holdActive {
+                                        gestureHandler.tap(at: x, width: geo.size.width, viewModel: viewModel)
+                                    }
+                                    // Hold ended — stop auto-repeat
+                                    gestureHandler.holdStop()
+                                }
+                        )
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: Constants.Input.dasDelay)
+                                .onEnded { _ in
+                                    // Start hold auto-repeat — uses lastTouchX from DragGesture onChanged
+                                    gestureHandler.holdStart(width: geo.size.width, viewModel: viewModel)
+                                }
+                        )
                 }
             }
 
@@ -206,7 +256,6 @@ struct ContentView: View {
             .padding(.vertical, Constants.Layout.iOS.bottomBarPaddingVertical)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .gesture(swipeGesture)
         .simultaneousGesture(pauseLongPress)
         .sheet(isPresented: $showSettings) {
             IOSSettingsView(settings: settings)
@@ -216,6 +265,50 @@ struct ContentView: View {
         }
         .onChange(of: viewModel.hardDropTrigger) { onHardDropTrigger() }
         .onChange(of: viewModel.lineClearTrigger) { onLineClearTrigger() }
+    }
+
+    // MARK: - iOS Zone Indicators
+
+    private func iOSZoneIndicators(size: CGSize) -> some View {
+        let third = size.width / 3
+        return HStack(spacing: 0) {
+            // Left zone
+            VStack(spacing: 4) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.25))
+                Spacer()
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.25))
+            }
+            .frame(width: third)
+            .background(.white.opacity(0.03))
+
+            // Center zone
+            VStack(spacing: 4) {
+                Image(systemName: "arrow.triangle.2.circlepath.circle")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.25))
+                Spacer()
+            }
+            .frame(width: third)
+            .background(.white.opacity(0.03))
+
+            // Right zone
+            VStack(spacing: 4) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.25))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.25))
+            }
+            .frame(width: third)
+            .background(.white.opacity(0.03))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func iOSStatField(label: String, value: String) -> some View {
@@ -281,26 +374,7 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - iOS Gestures
-
-    private var swipeGesture: some Gesture {
-        DragGesture()
-            .onEnded { value in
-                let dx = value.translation.width
-                let dy = value.translation.height
-                let dist = sqrt(dx * dx + dy * dy)
-
-                if dist < Constants.Input.minimumSwipeDistance {
-                    // Tap — rotate
-                    viewModel.rotate()
-                } else if abs(dx) > abs(dy) {
-                    if dx > 0 { viewModel.moveRight() }
-                    else { viewModel.moveLeft() }
-                } else if dy > 0 {
-                    viewModel.hardDrop()
-                }
-            }
-    }
+  // MARK: - iOS Gestures
 
     private var pauseLongPress: some Gesture {
         LongPressGesture(minimumDuration: Constants.Input.pauseLongPressDuration)

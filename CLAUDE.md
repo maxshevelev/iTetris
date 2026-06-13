@@ -23,6 +23,7 @@
 | `ControlsConfig.swift` | `@Observable` class for configurable keybindings, persisted to `controls.json`. Three profiles (Vim style, Arrows, Custom). Conflict detection excludes resume/pause/stop (context-sensitive actions) |
 | `SettingsView.swift` | macOS Settings window: General tab (player name, gameplay, animations) + Controls tab (key capture, profile picker) |
 | `IOSSettingsView.swift` | iOS Settings sheet: Player, Gameplay, Animations sections (no key bindings) |
+| `GestureHandler.swift` | Three-zone iOS gesture system: tap/hold auto-repeat (DAS/ARR) for left/right zones, tap rotate for center zone, hard drop on swipe down, haptic feedback |
 | `Constants.swift` | Centralized namespace: `Grid`, `Colors` (app + line-clear fire), `Layout` (board/info-panel/hard-drop/overlay/settings/iOS dimensions), `Animation` (phase thresholds, flash timing), `Input`, `Gameplay` |
 
 ## Build
@@ -41,7 +42,8 @@
 - **TetrominoColor → SwiftUI Color** mapping lives in `GameViewModel.swift` as a single `swiftUIColor` extension.
 - **`#Preview`** macros are included at the bottom of each view file.
 - **iOS layout.** `iOSBody` uses a three-section vertical stack: top bar (Settings gear button left, next-piece preview center, Pause/Resume button right), centered board with breathing room, bottom stats bar (Level, Score, Lines). All dimensions in `Constants.Layout.iOS`.
-- **iOS Settings.** `IOSSettingsView` presents as a `.sheet()` from the Settings button. Tapping Settings auto-pauses the game. Uses `@Bindable` for `ObservableSettings` projected `$` bindings. Guarded with `#if os(iOS)`.
+- **iOS Settings.** `IOSSettingsView` presents as a `.sheet()` from the Settings button. Tapping Settings auto-pauses the game. Uses local `@State` synced via `onChange` for `ObservableSettings`. Guarded with `#if os(iOS)`.
+- **iOS gestures.** Three-zone system via `GestureHandler`: left zone (tap = move left, hold = auto-repeat), center zone (tap = rotate), right zone (tap = move right, hold = auto-repeat). Swipe down = hard drop (priority). DAS = 170ms, ARR = 50ms (NES Tetris standards). Zone indicators show chevron arrows and subtle tints. Haptic feedback: light for move, medium for rotate, heavy for hard drop. `DragGesture(minimumDistance: 0)` tracks `lastTouchX` for zone resolution. `LongPressGesture` fires after DAS delay to start ARR loop.
 
 ## Active Tasks & Status
 
@@ -58,6 +60,7 @@
 | Configurable keybindings with profiles | ✅ Done |
 | iOS dedicated layout | ✅ Done |
 | iOS Settings sheet | ✅ Done |
+| iOS three-zone gesture system with DAS/ARR | ✅ Done |
 
 ---
 
