@@ -207,7 +207,6 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .gesture(swipeGesture)
-        .simultaneousGesture(rotateTap)
         .simultaneousGesture(pauseLongPress)
         .sheet(isPresented: $showSettings) {
             IOSSettingsView(settings: settings)
@@ -285,22 +284,22 @@ struct ContentView: View {
     // MARK: - iOS Gestures
 
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: Constants.Input.minimumSwipeDistance)
+        DragGesture()
             .onEnded { value in
                 let dx = value.translation.width
                 let dy = value.translation.height
-                if abs(dx) > abs(dy) {
+                let dist = sqrt(dx * dx + dy * dy)
+
+                if dist < Constants.Input.minimumSwipeDistance {
+                    // Tap — rotate
+                    viewModel.rotate()
+                } else if abs(dx) > abs(dy) {
                     if dx > 0 { viewModel.moveRight() }
                     else { viewModel.moveLeft() }
                 } else if dy > 0 {
                     viewModel.hardDrop()
                 }
             }
-    }
-
-    private var rotateTap: some Gesture {
-        TapGesture()
-            .onEnded { viewModel.rotate() }
     }
 
     private var pauseLongPress: some Gesture {
@@ -344,7 +343,6 @@ struct ContentView: View {
             }
             .padding(.vertical, Constants.Layout.verticalPadding)
             .gesture(swipeGesture)
-            .simultaneousGesture(rotateTap)
             .simultaneousGesture(pauseLongPress)
 
             InfoPanelView(
@@ -372,22 +370,21 @@ struct ContentView: View {
     // MARK: - macOS Gestures
 
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: Constants.Input.minimumSwipeDistance)
+        DragGesture()
             .onEnded { value in
                 let dx = value.translation.width
                 let dy = value.translation.height
-                if abs(dx) > abs(dy) {
+                let dist = sqrt(dx * dx + dy * dy)
+
+                if dist < Constants.Input.minimumSwipeDistance {
+                    viewModel.rotate()
+                } else if abs(dx) > abs(dy) {
                     if dx > 0 { viewModel.moveRight() }
                     else { viewModel.moveLeft() }
                 } else if dy > 0 {
                     viewModel.hardDrop()
                 }
             }
-    }
-
-    private var rotateTap: some Gesture {
-        TapGesture()
-            .onEnded { viewModel.rotate() }
     }
 
     private var pauseLongPress: some Gesture {
