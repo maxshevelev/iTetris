@@ -174,6 +174,12 @@ enum Constants {
     enum Input {
         static let minimumSwipeDistance: CGFloat = 20
         static let pauseLongPressDuration: TimeInterval = 0.5
+        /// Hard drop requires at least this much vertical travel.
+        static let hardDropThreshold: CGFloat = 40
+        /// Delay before auto-repeat starts (DAS 170ms).
+        static let dasDelay: TimeInterval = 0.170
+        /// Auto-repeat rate (ARR 50ms).
+        static let arrInterval: TimeInterval = 0.050
     }
 
     // MARK: - Gameplay
