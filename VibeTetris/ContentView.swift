@@ -200,10 +200,9 @@ struct ContentView: View {
                         }
                     }
 
-                    // Zone indicators — top of playing zone
+                    // Zone indicators — full height, behind board
                     iOSZoneIndicators(size: geo.size)
                         .allowsHitTesting(false)
-                        .offset(y: -geo.size.height / 2 + 10)
 
                     // Gesture overlay — captures all touches for three-zone system
                     Color.clear
@@ -276,42 +275,42 @@ struct ContentView: View {
     private func iOSZoneIndicators(size: CGSize) -> some View {
         let gap: CGFloat = 8
         let zoneWidth = (size.width - gap * 2) / 3
-        let zoneHeight: CGFloat = 44
 
         return HStack(spacing: gap) {
             // Left zone
             RoundedRectangle(cornerRadius: 12)
-                .fill(.white.opacity(0.08))
-                .frame(width: zoneWidth, height: zoneHeight)
+                .fill(.white.opacity(0.1))
+                .frame(width: zoneWidth, height: size.height)
                 .overlay {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.2))
+                        .padding(.top, 16)
                 }
 
             // Center zone
             RoundedRectangle(cornerRadius: 12)
-                .fill(.white.opacity(0.08))
-                .frame(width: zoneWidth, height: zoneHeight)
+                .fill(.white.opacity(0.1))
+                .frame(width: zoneWidth, height: size.height)
                 .overlay {
                     Image(systemName: "arrow.triangle.2.circlepath.circle")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.2))
+                        .padding(.top, 16)
                 }
 
             // Right zone
             RoundedRectangle(cornerRadius: 12)
-                .fill(.white.opacity(0.08))
-                .frame(width: zoneWidth, height: zoneHeight)
+                .fill(.white.opacity(0.1))
+                .frame(width: zoneWidth, height: size.height)
                 .overlay {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.2))
+                        .padding(.top, 16)
                 }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
-        .padding(.top, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func iOSStatField(label: String, value: String) -> some View {
