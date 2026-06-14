@@ -170,9 +170,6 @@ struct ContentView: View {
             // Playing zone — board + zone indicators + gesture handling
             GeometryReader { geo in
                 ZStack(alignment: .center) {
-                    // Zone indicators
-                    iOSZoneIndicators(size: geo.size)
-
                     // Board — constrained, centered with breathing room
                     ZStack {
                         TetrisBoardView(
@@ -202,6 +199,11 @@ struct ContentView: View {
                                 .allowsHitTesting(false)
                         }
                     }
+
+                    // Zone indicators — top of playing zone
+                    iOSZoneIndicators(size: geo.size)
+                        .allowsHitTesting(false)
+                        .offset(y: -geo.size.height / 2 + 10)
 
                     // Gesture overlay — captures all touches for three-zone system
                     Color.clear
@@ -272,55 +274,44 @@ struct ContentView: View {
     // MARK: - iOS Zone Indicators
 
     private func iOSZoneIndicators(size: CGSize) -> some View {
-        let third = size.width / 3
-        return HStack(spacing: 0) {
-            // Left zone
-            VStack(spacing: 4) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
-                Spacer()
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
-            }
-            .frame(width: third)
-            .background(.white.opacity(0.03))
+        let gap: CGFloat = 8
+        let zoneWidth = (size.width - gap * 2) / 3
+        let zoneHeight: CGFloat = 44
 
-            // Separator
-            Rectangle()
-                .fill(.white.opacity(0.15))
-                .frame(width: 1)
+        return HStack(spacing: gap) {
+            // Left zone
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.white.opacity(0.08))
+                .frame(width: zoneWidth, height: zoneHeight)
+                .overlay {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
 
             // Center zone
-            VStack(spacing: 4) {
-                Image(systemName: "arrow.triangle.2.circlepath.circle")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
-                Spacer()
-            }
-            .frame(width: third)
-            .background(.white.opacity(0.03))
-
-            // Separator
-            Rectangle()
-                .fill(.white.opacity(0.15))
-                .frame(width: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.white.opacity(0.08))
+                .frame(width: zoneWidth, height: zoneHeight)
+                .overlay {
+                    Image(systemName: "arrow.triangle.2.circlepath.circle")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
 
             // Right zone
-            VStack(spacing: 4) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
-            }
-            .frame(width: third)
-            .background(.white.opacity(0.03))
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.white.opacity(0.08))
+                .frame(width: zoneWidth, height: zoneHeight)
+                .overlay {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
     }
 
     private func iOSStatField(label: String, value: String) -> some View {
