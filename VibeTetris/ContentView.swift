@@ -221,6 +221,7 @@ struct ContentView: View {
                                     // Lock intent on first call
                                     if !isGestureActive {
                                         isGestureActive = true
+                                        gestureHandler.isGestureActive = true
                                         let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
                                         let zoneLayout = calculateZoneLayout(
                                             containerWidth: geo.size.width,
@@ -255,6 +256,7 @@ struct ContentView: View {
                                     if dy > Constants.Input.hardDropThreshold {
                                         gestureHandler.holdStop()
                                         gestureHandler.hasHardDropped = false
+                                        gestureHandler.isGestureActive = false
                                         isGestureActive = false
                                         return
                                     }
@@ -267,6 +269,7 @@ struct ContentView: View {
                                     // Hold ended — stop auto-repeat
                                     gestureHandler.holdStop()
                                     gestureHandler.hasHardDropped = false
+                                    gestureHandler.isGestureActive = false
                                     isGestureActive = false
                                 }
                         )
@@ -299,6 +302,10 @@ struct ContentView: View {
         .onChange(of: viewModel.hardDropTrigger) { onHardDropTrigger() }
         .onChange(of: viewModel.lineClearTrigger) { onLineClearTrigger() }
         .onChange(of: viewModel.pieceBlocks) { _ in
+            // Only reset hard-drop flag when no gesture is active —
+            // during an active hard-drop gesture, a new piece spawns
+            // but we must not allow a second hard drop on the same gesture.
+            guard !gestureHandler.isGestureActive else { return }
             gestureHandler.resetForNewPiece()
         }
     }
@@ -331,13 +338,14 @@ struct ContentView: View {
         let pieceCenterX: CGFloat
         let span: Int
         if pieceBlocks.isEmpty {
-            // Default spawn: columns 3–4, center = 3.5
-            pieceCenterX = 3.5
+            // Default spawn: columns 3–4, visual center = 4.0
+            pieceCenterX = 4.0
             span = 2
         } else {
             let minX = CGFloat(pieceBlocks.map(\.x).min()!)
             let maxX = CGFloat(pieceBlocks.map(\.x).max()!)
-            pieceCenterX = (minX + maxX) / 2
+            // Visual center of the cells occupied by the piece
+            pieceCenterX = (minX + maxX + 1) / 2
             span = pieceBlocks.map(\.x).max()! - pieceBlocks.map(\.x).min()! + 1
         }
 

@@ -11,6 +11,8 @@ final class GestureHandler {
 
     var lockedIntent: Intent?
     var isHolding = false
+    /// Whether a gesture is currently active (to prevent mid-gesture resets).
+    var isGestureActive = false
     private var arrTask: Task<Void, Never>?
     /// Whether hard drop has already fired for this gesture (to fire only once).
     var hasHardDropped = false
