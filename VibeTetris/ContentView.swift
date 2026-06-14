@@ -204,6 +204,7 @@ struct ContentView: View {
                     // Zone indicators — dynamic, behind board
                     let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
                     let zoneLayout = calculateZoneLayout(
+                        containerWidth: geo.size.width,
                         boardSize: bSize,
                         pieceBlocks: viewModel.pieceBlocks,
                         gridWidth: viewModel.gridWidth
@@ -222,6 +223,7 @@ struct ContentView: View {
                                         isGestureActive = true
                                         let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
                                         let zoneLayout = calculateZoneLayout(
+                                            containerWidth: geo.size.width,
                                             boardSize: bSize,
                                             pieceBlocks: viewModel.pieceBlocks,
                                             gridWidth: viewModel.gridWidth
@@ -322,21 +324,27 @@ struct ContentView: View {
         }
     }
 
-    private func calculateZoneLayout(boardSize: CGSize, pieceBlocks: Set<PieceCoordinate>, gridWidth: Int) -> ZoneLayout {
+    private func calculateZoneLayout(containerWidth: CGFloat, boardSize: CGSize, pieceBlocks: Set<PieceCoordinate>, gridWidth: Int) -> ZoneLayout {
+        let cellSize = boardSize.width / CGFloat(gridWidth)
+        let boardOffsetX = (containerWidth - boardSize.width) / 2
+
         let pieceCenterX: CGFloat
+        let span: Int
         if pieceBlocks.isEmpty {
-            pieceCenterX = CGFloat(gridWidth - 1) / 2
+            // Default spawn: columns 3–4, center = 3.5
+            pieceCenterX = 3.5
+            span = 2
         } else {
             let minX = CGFloat(pieceBlocks.map(\.x).min()!)
             let maxX = CGFloat(pieceBlocks.map(\.x).max()!)
             pieceCenterX = (minX + maxX) / 2
+            span = pieceBlocks.map(\.x).max()! - pieceBlocks.map(\.x).min()! + 1
         }
-        let cellSize = boardSize.width / CGFloat(gridWidth)
-        let centerX = pieceCenterX * cellSize
-        let span = pieceBlocks.isEmpty ? 2 : (pieceBlocks.map(\.x).max()! - pieceBlocks.map(\.x).min()! + 1)
+
+        let rotateCenterX = boardOffsetX + pieceCenterX * cellSize
         let rotateWidth = max(cellSize * 2, cellSize * CGFloat(span))
-        let leftWidth = max(0, centerX - rotateWidth / 2)
-        let rightWidth = max(0, boardSize.width - (centerX + rotateWidth / 2))
+        let leftWidth = max(0, rotateCenterX - rotateWidth / 2)
+        let rightWidth = max(0, containerWidth - (rotateCenterX + rotateWidth / 2))
         return ZoneLayout(leftWidth: leftWidth, rotateWidth: rotateWidth, rightWidth: rightWidth)
     }
 
