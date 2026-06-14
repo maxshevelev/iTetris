@@ -36,6 +36,7 @@ struct ContentView: View {
     #if os(iOS)
     @State private var showSettings = false
     @State private var gestureHandler = GestureHandler()
+    @State private var isGestureActive = false
     #endif
 
     // MARK: - Computed Colors
@@ -200,20 +201,44 @@ struct ContentView: View {
                         }
                     }
 
-                    // Zone indicators — full height, behind board
-                    iOSZoneIndicators(size: geo.size)
+                    // Zone indicators — dynamic, behind board
+                    let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
+                    let zoneLayout = calculateZoneLayout(
+                        boardSize: bSize,
+                        pieceBlocks: viewModel.pieceBlocks,
+                        gridWidth: viewModel.gridWidth
+                    )
+                    iOSZoneIndicators(layout: zoneLayout, size: geo.size)
                         .allowsHitTesting(false)
 
-                    // Gesture overlay — captures all touches for three-zone system
+                    // Gesture overlay — captures all touches for dynamic zone system
                     Color.clear
                         .contentShape(Rectangle())
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in
-                                    gestureHandler.lastTouchX = value.location.x
+                                    // Lock intent on first call
+                                    if !isGestureActive {
+                                        isGestureActive = true
+                                        let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
+                                        let zoneLayout = calculateZoneLayout(
+                                            boardSize: bSize,
+                                            pieceBlocks: viewModel.pieceBlocks,
+                                            gridWidth: viewModel.gridWidth
+                                        )
+                                        let leftEdge = zoneLayout.leftWidth
+                                        let rightEdge = leftEdge + zoneLayout.rotateWidth
+                                        if value.location.x < leftEdge {
+                                            gestureHandler.lockedIntent = .left
+                                        } else if value.location.x > rightEdge {
+                                            gestureHandler.lockedIntent = .right
+                                        } else {
+                                            gestureHandler.lockedIntent = .rotate
+                                        }
+                                    }
                                     let dy = value.translation.height
                                     // Hard drop takes priority — fire once per gesture
-                                    if gestureHandler.isHardDrop(dy), !gestureHandler.hasHardDropped {
+                                    if dy > Constants.Input.hardDropThreshold, !gestureHandler.hasHardDropped {
                                         gestureHandler.hasHardDropped = true
                                         viewModel.hardDrop()
                                         GestureHandler.haptic(.hardDrop)
@@ -221,30 +246,33 @@ struct ContentView: View {
                                     }
                                 }
                                 .onEnded { value in
-                                    let x = value.startLocation.x
                                     let dy = value.translation.height
                                     let dist = sqrt(value.translation.width * value.translation.width + dy * dy)
 
                                     // Hard drop already handled in onChanged
-                                    if gestureHandler.isHardDrop(dy) {
+                                    if dy > Constants.Input.hardDropThreshold {
+                                        gestureHandler.holdStop()
+                                        gestureHandler.hasHardDropped = false
+                                        isGestureActive = false
                                         return
                                     }
 
                                     // Tap — no significant movement, and no hold was active
-                                    if dist < Constants.Input.minimumSwipeDistance, !gestureHandler.holdActive {
-                                        gestureHandler.tap(at: x, width: geo.size.width, viewModel: viewModel)
+                                    if dist < Constants.Input.minimumSwipeDistance, !gestureHandler.isHolding,
+                                       let intent = gestureHandler.lockedIntent {
+                                        gestureHandler.tap(intent, viewModel: viewModel)
                                     }
                                     // Hold ended — stop auto-repeat
                                     gestureHandler.holdStop()
-                                    // Reset hard-drop flag for the next gesture
                                     gestureHandler.hasHardDropped = false
+                                    isGestureActive = false
                                 }
                         )
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: Constants.Input.dasDelay)
                                 .onEnded { _ in
-                                    // Start hold auto-repeat — uses lastTouchX from DragGesture onChanged
-                                    gestureHandler.holdStart(width: geo.size.width, viewModel: viewModel)
+                                    // Start hold auto-repeat — uses locked intent
+                                    gestureHandler.holdStart(viewModel: viewModel)
                                 }
                         )
                 }
@@ -268,19 +296,61 @@ struct ContentView: View {
         }
         .onChange(of: viewModel.hardDropTrigger) { onHardDropTrigger() }
         .onChange(of: viewModel.lineClearTrigger) { onLineClearTrigger() }
+        .onChange(of: viewModel.pieceBlocks) { _ in
+            gestureHandler.resetForNewPiece()
+        }
+    }
+
+    // MARK: - iOS Zone Layout
+
+    private struct ZoneLayout {
+        let leftWidth: CGFloat
+        let rotateWidth: CGFloat
+        let rightWidth: CGFloat
+    }
+
+    /// Compute the board size from the container size and grid aspect ratio.
+    private func boardSize(from containerSize: CGSize, gridWidth: Int, gridHeight: Int) -> CGSize {
+        let aspect = CGFloat(gridWidth) / CGFloat(gridHeight)
+        let width = containerSize.width
+        let height = width / aspect
+        if height <= containerSize.height {
+            return CGSize(width: width, height: height)
+        } else {
+            let h = containerSize.height
+            return CGSize(width: h * aspect, height: h)
+        }
+    }
+
+    private func calculateZoneLayout(boardSize: CGSize, pieceBlocks: Set<PieceCoordinate>, gridWidth: Int) -> ZoneLayout {
+        let pieceCenterX: CGFloat
+        if pieceBlocks.isEmpty {
+            pieceCenterX = CGFloat(gridWidth - 1) / 2
+        } else {
+            let minX = CGFloat(pieceBlocks.map(\.x).min()!)
+            let maxX = CGFloat(pieceBlocks.map(\.x).max()!)
+            pieceCenterX = (minX + maxX) / 2
+        }
+        let cellSize = boardSize.width / CGFloat(gridWidth)
+        let centerX = pieceCenterX * cellSize
+        let span = pieceBlocks.isEmpty ? 2 : (pieceBlocks.map(\.x).max()! - pieceBlocks.map(\.x).min()! + 1)
+        let rotateWidth = max(cellSize * 2, cellSize * CGFloat(span))
+        let leftWidth = max(0, centerX - rotateWidth / 2)
+        let rightWidth = max(0, boardSize.width - (centerX + rotateWidth / 2))
+        return ZoneLayout(leftWidth: leftWidth, rotateWidth: rotateWidth, rightWidth: rightWidth)
     }
 
     // MARK: - iOS Zone Indicators
 
-    private func iOSZoneIndicators(size: CGSize) -> some View {
+    private func iOSZoneIndicators(layout: ZoneLayout, size: CGSize) -> some View {
         let gap: CGFloat = 8
-        let zoneWidth = (size.width - gap * 2) / 3
+        let totalGaps = gap * 2
 
         return HStack(spacing: gap) {
             // Left zone
             RoundedRectangle(cornerRadius: 12)
                 .fill(.white.opacity(0.1))
-                .frame(width: zoneWidth, height: size.height)
+                .frame(width: max(0, layout.leftWidth - totalGaps / 3), height: size.height)
                 .overlay {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 24, weight: .semibold))
@@ -291,7 +361,7 @@ struct ContentView: View {
             // Center zone
             RoundedRectangle(cornerRadius: 12)
                 .fill(.white.opacity(0.1))
-                .frame(width: zoneWidth, height: size.height)
+                .frame(width: max(0, layout.rotateWidth - totalGaps / 3), height: size.height)
                 .overlay {
                     Image(systemName: "arrow.triangle.2.circlepath.circle")
                         .font(.system(size: 24, weight: .semibold))
@@ -302,7 +372,7 @@ struct ContentView: View {
             // Right zone
             RoundedRectangle(cornerRadius: 12)
                 .fill(.white.opacity(0.1))
-                .frame(width: zoneWidth, height: size.height)
+                .frame(width: max(0, layout.rightWidth - totalGaps / 3), height: size.height)
                 .overlay {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 24, weight: .semibold))

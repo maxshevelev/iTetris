@@ -3,101 +3,79 @@ import SwiftUI
 
 #if os(iOS)
 
-/// Manages the three-zone gesture system with DAS/ARR auto-repeat.
+/// Manages dynamic-zone gesture system with intent locking and DAS/ARR auto-repeat.
 @MainActor
 final class GestureHandler {
-    /// Direction for auto-repeat.
-    enum Direction { case left, right }
+    /// Locked intent for the current touch.
+    enum Intent { case left, right, rotate }
 
-    private var activeDirection: Direction?
+    var lockedIntent: Intent?
+    var isHolding = false
     private var arrTask: Task<Void, Never>?
-   /// Whether a hold was active (to suppress tap after hold).
-    var holdActive = false
-    /// Last known touch x position (set by DragGesture onChanged).
-    var lastTouchX: CGFloat = 0
     /// Whether hard drop has already fired for this gesture (to fire only once).
     var hasHardDropped = false
 
     // MARK: - Tap
 
-    /// Process a tap at the given x position.
-    func tap(at x: CGFloat, width: CGFloat, viewModel: GameViewModel) {
-        let zone = zone(for: x, width: width)
-        switch zone {
+    /// Process a tap using the locked intent.
+    func tap(_ intent: Intent, viewModel: GameViewModel) {
+        switch intent {
         case .left:
             viewModel.moveLeft()
             haptic(.move)
-        case .center:
-            viewModel.rotate()
-            haptic(.rotate)
         case .right:
             viewModel.moveRight()
             haptic(.move)
+        case .rotate:
+            viewModel.rotate()
+            haptic(.rotate)
         }
     }
 
     // MARK: - Hold
 
-  /// Start auto-repeat for the given zone.
+    /// Start auto-repeat for the locked intent.
     /// Called by LongPressGesture after DAS delay has elapsed.
-    func holdStart(width: CGFloat, viewModel: GameViewModel) {
-        guard activeDirection == nil else { return }
-        let zone = zone(for: lastTouchX, width: width)
-        let dir: Direction?
-        switch zone {
-        case .left:   dir = .left
-        case .center: dir = nil
-        case .right:  dir = .right
-        }
-        guard let dir else { return }
-        activeDirection = dir
-        holdActive = true
+    func holdStart(viewModel: GameViewModel) {
+        guard let intent = lockedIntent, !isHolding else { return }
+        isHolding = true
         haptic(.move)
         // ARR loop — DAS delay already handled by LongPressGesture
-        arrLoop(for: dir, viewModel: viewModel)
+        arrLoop(for: intent, viewModel: viewModel)
     }
 
     /// Stop auto-repeat.
     func holdStop() {
         arrTask?.cancel()
         arrTask = nil
-        activeDirection = nil
-        holdActive = false
+        isHolding = false
     }
 
-    // MARK: - Hard drop
+    // MARK: - Piece lifecycle
 
-    /// Check if the vertical movement qualifies as hard drop.
-    func isHardDrop(_ dy: CGFloat) -> Bool {
-        dy > Constants.Input.hardDropThreshold
+    /// Reset transient state when a new piece spawns.
+    func resetForNewPiece() {
+        hasHardDropped = false
     }
 
     // MARK: - Private
 
-    private enum Zone { case left, center, right }
-
-    private func zone(for x: CGFloat, width: CGFloat) -> Zone {
-        let third = width / 3
-        if x < third { return .left }
-        if x < 2 * third { return .center }
-        return .right
-    }
-
-    private func arrLoop(for direction: Direction, viewModel: GameViewModel) {
+    private func arrLoop(for intent: Intent, viewModel: GameViewModel) {
         Task { @MainActor in
-            while activeDirection == direction {
+            while isHolding, lockedIntent == intent {
                 try? await Task.sleep(nanoseconds: UInt64(Constants.Input.arrInterval * 1_000_000_000))
-                guard activeDirection == direction else { return }
-                switch direction {
+                guard isHolding, lockedIntent == intent else { return }
+                switch intent {
                 case .left:  viewModel.moveLeft()
                 case .right: viewModel.moveRight()
+                case .rotate: break // no auto-rotate
                 }
                 haptic(.move)
             }
         }
     }
 
-   // MARK: - Haptics
+    // MARK: - Haptics
 
     enum HapticType { case move, rotate, hardDrop }
 
@@ -105,7 +83,7 @@ final class GestureHandler {
         Self.haptic(type)
     }
 
-  static func haptic(_ type: HapticType) {
+    static func haptic(_ type: HapticType) {
         let style: UIImpactFeedbackGenerator.FeedbackStyle
         switch type {
         case .move:       style = .light
