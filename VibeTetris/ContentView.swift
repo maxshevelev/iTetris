@@ -37,6 +37,8 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var gestureHandler = GestureHandler()
     @State private var isGestureActive = false
+    @State private var showZoneIndicators = true
+    @State private var flashingZone: GestureHandler.Intent?
     #endif
 
     // MARK: - Computed Colors
@@ -209,8 +211,10 @@ struct ContentView: View {
                         pieceBlocks: viewModel.pieceBlocks,
                         gridWidth: viewModel.gridWidth
                     )
-                    iOSZoneIndicators(layout: zoneLayout, size: geo.size)
-                        .allowsHitTesting(false)
+                    if showZoneIndicators {
+                        iOSZoneIndicators(layout: zoneLayout, size: geo.size, flashingZone: flashingZone)
+                            .allowsHitTesting(false)
+                    }
 
                     // Gesture overlay — captures all touches for dynamic zone system
                     Color.clear
@@ -233,10 +237,13 @@ struct ContentView: View {
                                         let rightEdge = leftEdge + zoneLayout.rotateWidth
                                         if value.location.x < leftEdge {
                                             gestureHandler.lockedIntent = .left
+                                            flashingZone = .left
                                         } else if value.location.x > rightEdge {
                                             gestureHandler.lockedIntent = .right
+                                            flashingZone = .right
                                         } else {
                                             gestureHandler.lockedIntent = .rotate
+                                            flashingZone = .rotate
                                         }
                                     }
                                     let dy = value.translation.height
@@ -258,19 +265,30 @@ struct ContentView: View {
                                         gestureHandler.hasHardDropped = false
                                         gestureHandler.isGestureActive = false
                                         isGestureActive = false
+                                        flashingZone = nil
                                         return
                                     }
 
-                                    // Tap — no significant movement, and no hold was active
-                                    if dist < Constants.Input.minimumSwipeDistance, !gestureHandler.isHolding,
-                                       let intent = gestureHandler.lockedIntent {
-                                        gestureHandler.tap(intent, viewModel: viewModel)
+                                    // Fire the locked intent: left/right fire regardless of
+                                    // finger movement (tap-and-drag counts as tap), rotate only
+                                    // if no significant movement and no hold was active.
+                                    if let intent = gestureHandler.lockedIntent {
+                                        let shouldFire: Bool
+                                        if intent == .rotate {
+                                            shouldFire = dist < Constants.Input.minimumSwipeDistance && !gestureHandler.isHolding
+                                        } else {
+                                            shouldFire = !gestureHandler.isHolding
+                                        }
+                                        if shouldFire {
+                                            gestureHandler.tap(intent, viewModel: viewModel)
+                                        }
                                     }
                                     // Hold ended — stop auto-repeat
                                     gestureHandler.holdStop()
                                     gestureHandler.hasHardDropped = false
                                     gestureHandler.isGestureActive = false
                                     isGestureActive = false
+                                    flashingZone = nil
                                 }
                         )
                         .simultaneousGesture(
@@ -294,7 +312,7 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showSettings) {
-            IOSSettingsView(settings: settings)
+            IOSSettingsView(settings: settings, showZoneIndicators: $showZoneIndicators)
         }
         .onAppear {
             viewModel.start()
@@ -358,41 +376,45 @@ struct ContentView: View {
 
     // MARK: - iOS Zone Indicators
 
-    private func iOSZoneIndicators(layout: ZoneLayout, size: CGSize) -> some View {
+    private func iOSZoneIndicators(layout: ZoneLayout, size: CGSize, flashingZone: GestureHandler.Intent?) -> some View {
         let gap: CGFloat = 8
         let totalGaps = gap * 2
+        let baseAlpha: CGFloat = 0.05
+        let iconAlpha: CGFloat = 0.07
+        let flashAlpha: CGFloat = 0.12
+
+        func zoneFill(intent: GestureHandler.Intent, width: CGFloat) -> some View {
+            let isFlashing = flashingZone == intent
+            return RoundedRectangle(cornerRadius: 12)
+                .fill(.white.opacity(isFlashing ? flashAlpha : baseAlpha))
+                .frame(width: max(0, width - totalGaps / 3), height: size.height)
+        }
 
         return HStack(spacing: gap) {
             // Left zone
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.white.opacity(0.1))
-                .frame(width: max(0, layout.leftWidth - totalGaps / 3), height: size.height)
+            zoneFill(intent: .left, width: layout.leftWidth)
                 .overlay {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.2))
+                        .foregroundStyle(.white.opacity(iconAlpha))
                         .padding(.top, 16)
                 }
 
             // Center zone
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.white.opacity(0.1))
-                .frame(width: max(0, layout.rotateWidth - totalGaps / 3), height: size.height)
+            zoneFill(intent: .rotate, width: layout.rotateWidth)
                 .overlay {
                     Image(systemName: "arrow.triangle.2.circlepath.circle")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.2))
+                        .foregroundStyle(.white.opacity(iconAlpha))
                         .padding(.top, 16)
                 }
 
             // Right zone
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.white.opacity(0.1))
-                .frame(width: max(0, layout.rightWidth - totalGaps / 3), height: size.height)
+            zoneFill(intent: .right, width: layout.rightWidth)
                 .overlay {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.2))
+                        .foregroundStyle(.white.opacity(iconAlpha))
                         .padding(.top, 16)
                 }
         }

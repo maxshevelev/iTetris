@@ -22,7 +22,7 @@
 | `ObservableSettings.swift` | Thin wrapper around `any GameSettings`, exposing writable properties for SwiftUI |
 | `ControlsConfig.swift` | `@Observable` class for configurable keybindings, persisted to `controls.json`. Three profiles (Vim style, Arrows, Custom). Conflict detection excludes resume/pause/stop (context-sensitive actions) |
 | `SettingsView.swift` | macOS Settings window: General tab (player name, gameplay, animations) + Controls tab (key capture, profile picker) |
-| `IOSSettingsView.swift` | iOS Settings sheet: Player, Gameplay, Animations sections (no key bindings) |
+| `IOSSettingsView.swift` | iOS Settings sheet: Player, Gameplay, Animations, Display (zone indicators toggle) sections (no key bindings) |
 | `GestureHandler.swift` | Dynamic-zone iOS gesture system: intent locked on touch begin based on finger X vs piece center X, DAS/ARR auto-repeat, hard drop on swipe down, haptic feedback, `resetForNewPiece()` lifecycle |
 | `Constants.swift` | Centralized namespace: `Grid`, `Colors` (app + line-clear fire), `Layout` (board/info-panel/hard-drop/overlay/settings/iOS dimensions), `Animation` (phase thresholds, flash timing), `Input`, `Gameplay` |
 
@@ -43,7 +43,7 @@
 - **`#Preview`** macros are included at the bottom of each view file.
 - **iOS layout.** `iOSBody` uses a three-section vertical stack: top bar (Settings gear button left, next-piece preview center, Pause/Resume button right), centered board with breathing room, bottom stats bar (Level, Score, Lines). All dimensions in `Constants.Layout.iOS`.
 - **iOS Settings.** `IOSSettingsView` presents as a `.sheet()` from the Settings button. Tapping Settings auto-pauses the game. Uses local `@State` synced via `onChange` for `ObservableSettings`. Guarded with `#if os(iOS)`.
-- **iOS gestures.** Dynamic-zone system via `GestureHandler`: zones computed relative to active piece horizontal position. On touch begin, intent (left/right/rotate) is locked based on finger X vs piece center X; intent persists for entire touch duration regardless of finger/piece movement. DAS = 170ms, ARR = 50ms (NES Tetris standards). Hold auto-repeat uses locked intent. Swipe down = hard drop (priority, fires once per gesture). Zone indicators update reactively as piece moves. Haptic feedback: light for move, medium for rotate, heavy for hard drop. `DragGesture(minimumDistance: 0)` for touch tracking. `LongPressGesture` fires after DAS delay to start ARR loop. `resetForNewPiece()` called on `pieceBlocks` change to reset `hasHardDropped`.
+- **iOS gestures.** Dynamic-zone system via `GestureHandler`: zones computed relative to active piece horizontal position. On touch begin, intent (left/right/rotate) is locked based on finger X vs piece center X; intent persists for entire touch duration regardless of finger/piece movement. DAS = 170ms, ARR = 50ms (NES Tetris standards). Hold auto-repeat uses locked intent. Swipe down = hard drop (priority, fires once per gesture). Left/right intent fires on tap-and-drag (no distance check); rotate requires `minimumSwipeDistance` check. Zone indicators update reactively as piece moves, flash during gesture, and are toggleable via Settings → Display → "Zone indicators" (non-persistent). Haptic feedback: light for move, medium for rotate, heavy for hard drop. `DragGesture(minimumDistance: 0)` for touch tracking. `LongPressGesture` fires after DAS delay to start ARR loop. `resetForNewPiece()` called on `pieceBlocks` change to reset `hasHardDropped`, guarded by `isGestureActive`.
 
 ## Active Tasks & Status
 

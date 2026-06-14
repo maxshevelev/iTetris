@@ -4,14 +4,16 @@ import SwiftUI
 
 struct IOSSettingsView: View {
     let settings: ObservableSettings
+    @Binding var showZoneIndicators: Bool
     @State private var nameDraft: String
     @State private var lockImmediately: Bool
     @State private var hardDropAnimated: Bool
     @State private var lineClearAnimated: Bool
     @State private var initialLevel: Int
 
-    init(settings: ObservableSettings) {
+    init(settings: ObservableSettings, showZoneIndicators: Binding<Bool> = .constant(true)) {
         self.settings = settings
+        self._showZoneIndicators = showZoneIndicators
         self._nameDraft = State(initialValue: settings.playerName)
         self._lockImmediately = State(initialValue: settings.lockImmediatelyAfterHardDrop)
         self._hardDropAnimated = State(initialValue: settings.isHardDropAnimated)
@@ -36,6 +38,9 @@ struct IOSSettingsView: View {
                 Section("Animations") {
                     Toggle("Animate hard drop", isOn: $hardDropAnimated)
                     Toggle("Animate line clears", isOn: $lineClearAnimated)
+                }
+                Section("Display") {
+                    Toggle("Zone indicators", isOn: $showZoneIndicators)
                 }
             }
             .navigationTitle("Settings")
@@ -78,7 +83,7 @@ struct IOSSettingsView: View {
 }
 
 #Preview {
-    IOSSettingsView(settings: ObservableSettings())
+    IOSSettingsView(settings: ObservableSettings(), showZoneIndicators: .constant(true))
 }
 
 #endif
