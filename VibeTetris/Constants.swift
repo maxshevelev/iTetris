@@ -180,6 +180,10 @@ enum Constants {
         static let dasDelay: TimeInterval = 0.170
         /// Auto-repeat rate (ARR 50ms).
         static let arrInterval: TimeInterval = 0.050
+        /// Horizontal swipe: minimum horizontal travel (pt).
+        static let swipeDistanceThreshold: CGFloat = 30
+        /// Horizontal swipe: maximum elapsed time (s) — slower = hold, not swipe.
+        static let swipeMaxDuration: TimeInterval = 0.3
     }
 
     // MARK: - Gameplay

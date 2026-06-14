@@ -227,6 +227,7 @@ struct ContentView: View {
                                     if !isGestureActive {
                                         isGestureActive = true
                                         gestureHandler.isGestureActive = true
+                                        gestureHandler.resetSwipe()
                                         let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
                                         let zl = calculateZoneLayout(
                                             containerWidth: geo.size.width,
@@ -270,6 +271,30 @@ struct ContentView: View {
                                         flashingZone = nil
                                         return
                                     }
+
+                                    // --- Swipe detection ---
+                                    // Horizontal swipe: significant travel, fast, horizontal-dominant.
+                                    let dx = value.translation.width
+                                    let elapsed = Date().timeIntervalSince1970 - gestureHandler.gestureStartTime
+                                    let isHorizontalSwipe = abs(dx) > abs(dy)
+                                        && abs(dx) > Constants.Input.swipeDistanceThreshold
+                                        && elapsed < Constants.Input.swipeMaxDuration
+
+                                    if isHorizontalSwipe {
+                                        // Swipe direction always wins — any zone.
+                                        let direction: GestureHandler.Intent = dx > 0 ? .right : .left
+                                        gestureHandler.hasSwiped = true
+                                        gestureHandler.tap(direction, viewModel: viewModel)
+                                        gestureHandler.holdStop()
+                                        gestureHandler.hasHardDropped = false
+                                        gestureHandler.isGestureActive = false
+                                        gestureStartZoneLayout = nil
+                                        isGestureActive = false
+                                        flashingZone = nil
+                                        return
+                                    }
+
+                                    // --- Tap / hold — no swipe detected ---
 
                                     // Determine intent: use locked intent, or fall back to
                                     // the zone layout captured at gesture start (in case
@@ -323,7 +348,9 @@ struct ContentView: View {
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: Constants.Input.dasDelay, maximumDistance: 500)
                                 .onEnded { _ in
-                                    // Start hold auto-repeat — uses locked intent
+                                    // Start hold auto-repeat — uses locked intent.
+                                    // Skip if a swipe was detected (swipe = single action, no repeat).
+                                    guard !gestureHandler.hasSwiped else { return }
                                     gestureHandler.holdStart(viewModel: viewModel)
                                 }
                         )
@@ -348,7 +375,7 @@ struct ContentView: View {
         }
         .onChange(of: viewModel.hardDropTrigger) { onHardDropTrigger() }
         .onChange(of: viewModel.lineClearTrigger) { onLineClearTrigger() }
-        .onChange(of: viewModel.pieceBlocks) { _ in
+        .onChange(of: viewModel.pieceBlocks) {
             // Only reset hard-drop flag when no gesture is active —
             // during an active hard-drop gesture, a new piece spawns
             // but we must not allow a second hard drop on the same gesture.
@@ -409,30 +436,34 @@ struct ContentView: View {
         let centerAlpha: CGFloat = 0.04
         let iconAlpha: CGFloat = 0.12
         let flashAlpha: CGFloat = 0.12
-        let inset: CGFloat = 20
+
+        // Fill color — white in dark mode, black in light mode so it's visible on the board.
+        let fill = colorScheme == .dark ? Color.white : Color.black
 
         let leftW = layout.leftWidth
         let centerW = layout.rotateWidth
         let rightW = layout.rightWidth
 
+        let iconSize: CGFloat = 30
+        
         // Vertically center within the game grid with 20pt insets
-        let h = boardSize.height - inset * 2
+        let h = boardSize.height
 
         return ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
                 // Left zone — flash fill only
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(flashingZone == .left ? flashAlpha : 0))
+                Rectangle()
+                    .fill(fill.opacity(flashingZone == .left ? flashAlpha : 0))
                     .frame(width: leftW)
-                
-                // Center zone — rounded fill + flash
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(flashingZone == .rotate ? flashAlpha : centerAlpha))
+
+                // Center zone — fill + flash
+                Rectangle()
+                    .fill(fill.opacity(flashingZone == .rotate ? flashAlpha : centerAlpha))
                     .frame(width: centerW)
-                
+
                 // Right zone — flash fill only
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(flashingZone == .right ? flashAlpha : 0))
+                Rectangle()
+                    .fill(fill.opacity(flashingZone == .right ? flashAlpha : 0))
                     .frame(width: rightW)
             }
             .frame(height: h)
@@ -440,21 +471,21 @@ struct ContentView: View {
             // Icons centered in each zone
             HStack(spacing: 0) {
                 Image(systemName: "chevron.backward.chevron.backward.dotted")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(iconAlpha))
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(fill.opacity(iconAlpha))
                     .frame(width: leftW, alignment: .center)
 
                 Image(systemName: "rotate.left")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(iconAlpha))
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(fill.opacity(iconAlpha))
                     .frame(width: centerW, alignment: .center)
 
                 Image(systemName: "chevron.forward.dotted.chevron.forward")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(iconAlpha))
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(fill.opacity(iconAlpha))
                     .frame(width: rightW, alignment: .center)
             }
-            .padding(.top, inset)
+            .padding(.top, 20)
         }
         .frame(width: size.width, height: size.height)
     }

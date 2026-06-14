@@ -3,7 +3,7 @@ import SwiftUI
 
 #if os(iOS)
 
-/// Manages dynamic-zone gesture system with intent locking and DAS/ARR auto-repeat.
+/// Manages dynamic-zone gesture system with intent locking, DAS/ARR auto-repeat, and swipe detection.
 @MainActor
 final class GestureHandler {
     /// Locked intent for the current touch.
@@ -16,6 +16,10 @@ final class GestureHandler {
     private var arrTask: Task<Void, Never>?
     /// Whether hard drop has already fired for this gesture (to fire only once).
     var hasHardDropped = false
+    /// Whether a swipe has been detected — prevents tap + auto-repeat after a swipe.
+    var hasSwiped = false
+    /// Start time of the current gesture for swipe timing.
+    var gestureStartTime: TimeInterval = 0
 
     // MARK: - Tap
 
@@ -60,6 +64,13 @@ final class GestureHandler {
     /// Reset transient state when a new piece spawns.
     func resetForNewPiece() {
         hasHardDropped = false
+        hasSwiped = false
+    }
+
+    /// Reset swipe state at the start of a new gesture.
+    func resetSwipe() {
+        hasSwiped = false
+        gestureStartTime = Date().timeIntervalSince1970
     }
 
     // MARK: - Private
