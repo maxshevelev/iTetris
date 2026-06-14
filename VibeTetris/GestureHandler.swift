@@ -38,8 +38,10 @@ final class GestureHandler {
 
     /// Start auto-repeat for the locked intent.
     /// Called by LongPressGesture after DAS delay has elapsed.
+    /// Rotate intent does not auto-repeat — ignored.
     func holdStart(viewModel: GameViewModel) {
         guard let intent = lockedIntent, !isHolding else { return }
+        guard intent != .rotate else { return }
         isHolding = true
         haptic(.move)
         // ARR loop — DAS delay already handled by LongPressGesture
