@@ -15,6 +15,8 @@ final class GestureHandler {
     var holdActive = false
     /// Last known touch x position (set by DragGesture onChanged).
     var lastTouchX: CGFloat = 0
+    /// Whether hard drop has already fired for this gesture (to fire only once).
+    var hasHardDropped = false
 
     // MARK: - Tap
 

@@ -211,8 +211,9 @@ struct ContentView: View {
                                 .onChanged { value in
                                     gestureHandler.lastTouchX = value.location.x
                                     let dy = value.translation.height
-                                    // Hard drop takes priority — fire immediately and cancel hold
-                                    if gestureHandler.isHardDrop(dy) {
+                                    // Hard drop takes priority — fire once per gesture
+                                    if gestureHandler.isHardDrop(dy), !gestureHandler.hasHardDropped {
+                                        gestureHandler.hasHardDropped = true
                                         viewModel.hardDrop()
                                         GestureHandler.haptic(.hardDrop)
                                         gestureHandler.holdStop()
@@ -234,6 +235,8 @@ struct ContentView: View {
                                     }
                                     // Hold ended — stop auto-repeat
                                     gestureHandler.holdStop()
+                                    // Reset hard-drop flag for the next gesture
+                                    gestureHandler.hasHardDropped = false
                                 }
                         )
                         .simultaneousGesture(
@@ -256,7 +259,6 @@ struct ContentView: View {
             .padding(.vertical, Constants.Layout.iOS.bottomBarPaddingVertical)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .simultaneousGesture(pauseLongPress)
         .sheet(isPresented: $showSettings) {
             IOSSettingsView(settings: settings)
         }
@@ -276,34 +278,44 @@ struct ContentView: View {
             VStack(spacing: 4) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.white.opacity(0.5))
                 Spacer()
                 Image(systemName: "chevron.left")
                     .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.white.opacity(0.5))
             }
             .frame(width: third)
             .background(.white.opacity(0.03))
+
+            // Separator
+            Rectangle()
+                .fill(.white.opacity(0.15))
+                .frame(width: 1)
 
             // Center zone
             VStack(spacing: 4) {
                 Image(systemName: "arrow.triangle.2.circlepath.circle")
                     .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.white.opacity(0.5))
                 Spacer()
             }
             .frame(width: third)
             .background(.white.opacity(0.03))
 
+            // Separator
+            Rectangle()
+                .fill(.white.opacity(0.15))
+                .frame(width: 1)
+
             // Right zone
             VStack(spacing: 4) {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.white.opacity(0.5))
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.white.opacity(0.5))
             }
             .frame(width: third)
             .background(.white.opacity(0.03))
@@ -374,12 +386,6 @@ struct ContentView: View {
         )
     }
 
-  // MARK: - iOS Gestures
-
-    private var pauseLongPress: some Gesture {
-        LongPressGesture(minimumDuration: Constants.Input.pauseLongPressDuration)
-            .onEnded { _ in viewModel.pause() }
-    }
     #endif
 
     // MARK: - macOS Body
