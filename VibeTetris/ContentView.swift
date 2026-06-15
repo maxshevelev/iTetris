@@ -259,6 +259,13 @@ struct ContentView: View {
                                     }
                                 }
                                 .onEnded { value in
+                                    // Reset per-gesture flags — hasHardDropped is also reset at the
+                                    // end of each path below, but hasSwiped needs clearing here so
+                                    // that if onChanged didn't fire (very quick tap), it doesn't
+                                    // carry over from the previous gesture and wrongly suppress hold.
+                                    gestureHandler.hasSwiped = false
+                                    gestureHandler.hasHardDropped = false
+
                                     let dy = value.translation.height
 
                                     // Hard drop already handled in onChanged
