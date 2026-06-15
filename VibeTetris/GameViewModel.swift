@@ -23,6 +23,7 @@ final class GameViewModel {
     var lineClearRows: Set<Int> = []
     var lineClearAnimDuration: TimeInterval = 0
     var lineClearTrigger = 0
+    var newPieceTrigger = 0
     var lineClearGridSnapshot: [PieceCoordinate: TetrominoColor]?
     var ghostPieceBlocks: Set<PieceCoordinate> = []
 
@@ -96,12 +97,14 @@ final class GameViewModel {
         // 3. Grid
         if let v = gridEvent { grid = v }
 
-        // 4. Current piece (includes hard-drop detection)
+        // 4. Current piece (includes hard-drop and new-piece detection)
         if let p = pieceEvent {
             pieceColor = p.color
+            let cur = p.blocks.map(\.y).min()
+
             if let duration = p.hardDropDuration,
                let prev = previousPieceMinY,
-               let cur = p.blocks.map(\.y).min(),
+               let cur = cur,
                cur - prev > Constants.Gameplay.hardDropRowThreshold {
                 hardDropTrigger &+= 1
                 hardDropDeltaY = cur - prev
@@ -110,7 +113,15 @@ final class GameViewModel {
             } else if p.hardDropDuration == nil {
                 isHardDropping = false
             }
-            previousPieceMinY = p.blocks.map(\.y).min() ?? previousPieceMinY
+
+            // New piece detection: min-Y jumps to spawn row (0) from a higher value
+            if let cur = cur,
+               (previousPieceMinY == nil || previousPieceMinY! > 0),
+               cur == 0 {
+                newPieceTrigger &+= 1
+            }
+
+            previousPieceMinY = cur ?? previousPieceMinY
             pieceBlocks = p.blocks
         }
 

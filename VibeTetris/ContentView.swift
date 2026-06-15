@@ -385,7 +385,7 @@ struct ContentView: View {
         }
         .onChange(of: viewModel.hardDropTrigger) { onHardDropTrigger() }
         .onChange(of: viewModel.lineClearTrigger) { onLineClearTrigger() }
-        .onChange(of: viewModel.pieceBlocks) {
+        .onChange(of: viewModel.newPieceTrigger) {
             // Only reset hard-drop flag when no gesture is active —
             // during an active hard-drop gesture, a new piece spawns
             // but we must not allow a second hard drop on the same gesture.
