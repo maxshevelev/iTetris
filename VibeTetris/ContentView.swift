@@ -287,8 +287,11 @@ struct ContentView: View {
                                         && abs(dx) > Constants.Input.swipeDistanceThreshold
                                         && elapsed < Constants.Input.swipeMaxDuration
 
-                                    if isHorizontalSwipe {
+                                    if isHorizontalSwipe, !gestureHandler.isHolding {
                                         // Swipe direction always wins — any zone.
+                                        // Skip if hold was active: hold actions already fired and
+                                        // a swipe on release would cancel them out (hold moved left,
+                                        // swipe fires right → looks like nothing happened).
                                         let direction: GestureHandler.Intent = dx > 0 ? .right : .left
                                         gestureHandler.hasSwiped = true
                                         gestureHandler.tap(direction, viewModel: viewModel)
