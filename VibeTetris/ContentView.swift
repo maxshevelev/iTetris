@@ -36,7 +36,6 @@ struct ContentView: View {
     #if os(iOS)
     @State private var showSettings = false
     @State private var gestureHandler = GestureHandler()
-    @State private var isGestureActive = false
     @State private var showZoneIndicators = true
     @State private var flashingZone: GestureHandler.Intent?
     @State private var gestureStartZoneLayout: ZoneLayout?
@@ -224,8 +223,7 @@ struct ContentView: View {
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in
                                     // Lock intent on first call
-                                    if !isGestureActive {
-                                        isGestureActive = true
+                                    if !gestureHandler.isGestureActive {
                                         gestureHandler.isGestureActive = true
                                         gestureHandler.resetSwipe()
                                         let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
@@ -274,7 +272,6 @@ struct ContentView: View {
                                         gestureHandler.hasHardDropped = false
                                         gestureHandler.isGestureActive = false
                                         gestureStartZoneLayout = nil
-                                        isGestureActive = false
                                         flashingZone = nil
                                         return
                                     }
@@ -299,7 +296,6 @@ struct ContentView: View {
                                         gestureHandler.hasHardDropped = false
                                         gestureHandler.isGestureActive = false
                                         gestureStartZoneLayout = nil
-                                        isGestureActive = false
                                         flashingZone = nil
                                         return
                                     }
@@ -351,7 +347,6 @@ struct ContentView: View {
                                     gestureHandler.hasHardDropped = false
                                     gestureHandler.isGestureActive = false
                                     gestureStartZoneLayout = nil
-                                    isGestureActive = false
                                     flashingZone = nil
                                 }
                         )
