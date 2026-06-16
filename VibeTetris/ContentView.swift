@@ -24,6 +24,7 @@ struct ContentView: View {
     }
     #endif
 
+    @Environment(\.scenePhase) var scenePhase
     @Environment(\.colorScheme) var colorScheme
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
@@ -352,6 +353,11 @@ struct ContentView: View {
         }
         .onAppear {
             viewModel.start()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                viewModel.pause()
+            }
         }
         .onChange(of: viewModel.hardDropTrigger) { onHardDropTrigger() }
         .onChange(of: viewModel.lineClearTrigger) { onLineClearTrigger() }
