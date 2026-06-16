@@ -123,6 +123,10 @@ enum Constants {
             // Bottom bar
             static let bottomBarPadding: CGFloat = 20
             static let bottomBarPaddingVertical: CGFloat = 12
+
+            // Zone indicators
+            static let zoneIndicatorIconSize: CGFloat = 30
+            static let zoneIndicatorTopInset: CGFloat = 20
         }
     }
 

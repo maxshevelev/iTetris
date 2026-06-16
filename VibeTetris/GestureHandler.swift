@@ -4,7 +4,6 @@ import SwiftUI
 #if os(iOS)
 
 /// Manages dynamic-zone gesture system with intent locking, DAS/ARR auto-repeat, and swipe detection.
-@MainActor
 final class GestureHandler {
     /// Locked intent for the current touch.
     enum Intent { case left, right, rotate }

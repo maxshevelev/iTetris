@@ -234,18 +234,9 @@ struct ContentView: View {
                                             gridWidth: viewModel.gridWidth
                                         )
                                         gestureStartZoneLayout = zl
-                                        let leftEdge = zl.leftWidth
-                                        let rightEdge = leftEdge + zl.rotateWidth
-                                        if value.location.x < leftEdge {
-                                            gestureHandler.lockedIntent = .left
-                                            flashingZone = .left
-                                        } else if value.location.x > rightEdge {
-                                            gestureHandler.lockedIntent = .right
-                                            flashingZone = .right
-                                        } else {
-                                            gestureHandler.lockedIntent = .rotate
-                                            flashingZone = .rotate
-                                        }
+                                        let resolvedIntent = intentForPosition(value.location.x, layout: zl)
+                                        gestureHandler.lockedIntent = resolvedIntent
+                                        flashingZone = resolvedIntent
                                     }
                                     let dy = value.translation.height
                                     // Hard drop takes priority — fire once per gesture
@@ -309,15 +300,7 @@ struct ContentView: View {
                                     if let locked = gestureHandler.lockedIntent {
                                         intent = locked
                                     } else if let zl = gestureStartZoneLayout {
-                                        let leftEdge = zl.leftWidth
-                                        let rightEdge = leftEdge + zl.rotateWidth
-                                        if value.startLocation.x < leftEdge {
-                                            intent = .left
-                                        } else if value.startLocation.x > rightEdge {
-                                            intent = .right
-                                        } else {
-                                            intent = .rotate
-                                        }
+                                        intent = intentForPosition(value.startLocation.x, layout: zl)
                                     } else {
                                         let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
                                         let zl = calculateZoneLayout(
@@ -326,15 +309,7 @@ struct ContentView: View {
                                             pieceBlocks: viewModel.pieceBlocks,
                                             gridWidth: viewModel.gridWidth
                                         )
-                                        let leftEdge = zl.leftWidth
-                                        let rightEdge = leftEdge + zl.rotateWidth
-                                        if value.startLocation.x < leftEdge {
-                                            intent = .left
-                                        } else if value.startLocation.x > rightEdge {
-                                            intent = .right
-                                        } else {
-                                            intent = .rotate
-                                        }
+                                        intent = intentForPosition(value.startLocation.x, layout: zl)
                                     }
 
                                     // Fire the intent if no hold was active — all intents
@@ -397,6 +372,13 @@ struct ContentView: View {
         let rightWidth: CGFloat
     }
 
+    /// Determine the intent for an X position within a zone layout.
+    private func intentForPosition(_ x: CGFloat, layout: ZoneLayout) -> GestureHandler.Intent {
+        if x < layout.leftWidth { return .left }
+        if x > layout.leftWidth + layout.rotateWidth { return .right }
+        return .rotate
+    }
+
     /// Compute the board size from the container size and grid aspect ratio.
     private func boardSize(from containerSize: CGSize, gridWidth: Int, gridHeight: Int) -> CGSize {
         let aspect = CGFloat(gridWidth) / CGFloat(gridHeight)
@@ -449,7 +431,7 @@ struct ContentView: View {
         let centerW = layout.rotateWidth
         let rightW = layout.rightWidth
 
-        let iconSize: CGFloat = 30
+        let iconSize: CGFloat = Constants.Layout.iOS.zoneIndicatorIconSize
         
         // Vertically center within the game grid with 20pt insets
         let h = boardSize.height
@@ -490,7 +472,7 @@ struct ContentView: View {
                     .foregroundStyle(fill.opacity(iconAlpha))
                     .frame(width: rightW, alignment: .center)
             }
-            .padding(.top, 20)
+            .padding(.top, Constants.Layout.iOS.zoneIndicatorTopInset)
         }
         .frame(width: size.width, height: size.height)
     }
