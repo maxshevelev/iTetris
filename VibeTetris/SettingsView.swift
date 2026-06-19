@@ -181,6 +181,7 @@ private struct KeyCaptureView: NSViewRepresentable {
         private var monitor: Any?
 
         func startMonitor(isRecording: Binding<Bool>, capturedKey: Binding<String>) {
+            guard monitor == nil else { return } // already listening — prevent leaked monitors
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 guard isRecording.wrappedValue else { return event }
 
