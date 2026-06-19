@@ -637,19 +637,24 @@ struct ContentView: View {
     private func handleKeyPress(_ press: KeyPress) -> KeyPress.Result {
         let keyStr = ControlsConfig.keyString(from: press.key)
 
-        if keyStr == controls.moveLeft  { viewModel.moveLeft(); return .handled }
-        if keyStr == controls.moveRight { viewModel.moveRight(); return .handled }
-        if keyStr == controls.rotate    { viewModel.rotate(); return .handled }
+        // Context-sensitive actions work in any state.
         if keyStr == controls.resume, viewModel.displayState == .paused {
             viewModel.resume()
             return .handled
         }
+        if keyStr == controls.pause { viewModel.pause(); return .handled }
+        if keyStr == controls.stop  { viewModel.stop(); return .handled }
+
+        // Movement/drop actions only while playing.
+        guard viewModel.displayState == .playing else { return .ignored }
+
+        if keyStr == controls.moveLeft  { viewModel.moveLeft(); return .handled }
+        if keyStr == controls.moveRight { viewModel.moveRight(); return .handled }
+        if keyStr == controls.rotate    { viewModel.rotate(); return .handled }
         if keyStr == controls.hardDrop {
             viewModel.hardDrop()
             return .handled
         }
-        if keyStr == controls.pause { viewModel.pause(); return .handled }
-        if keyStr == controls.stop  { viewModel.stop(); return .handled }
 
         return .ignored
     }
