@@ -1,212 +1,263 @@
-# iOS Gesture System — Deep Review
+# VibeTetris — Code Review
 
-## Overview
-
-The iOS gesture system uses a dynamic 3-zone layout (left / rotate / right) computed around the active piece's horizontal center. Intent is locked on touch begin, DAS/ARR auto-repeat fires via `LongPressGesture` + `Task.sleep`, and horizontal/vertical swipes are detected on release. Zone indicators provide visual feedback.
-
-**Key files:**
-- `GestureHandler.swift` — transient gesture state, intent, hold/ARR loop, haptics
-- `ContentView.swift` (iOSBody) — `DragGesture` + `LongPressGesture` wiring, zone calculation, zone indicator rendering
-- `Constants.swift` — DAS (170ms), ARR (50ms), thresholds
+*Branch: `ios-settings-restructure` · 2026-06-19*
 
 ---
 
-## Findings
+## Git Diff Issues
 
-### 🔴 Bugs
+The current branch adds `README.md`, `REVIEW.md`, and `CLAUDE.md` as app bundle resources in
+`project.pbxproj`. These documentation files should **not** be bundled with the app. Remove them
+from the Resources build phase.
 
-#### 1. `hasSwiped` stale state on rapid taps
+---
 
-**Location:** `GestureHandler.swift:20` + `ContentView.swift:286`
+## Critical
 
-`hasSwiped` is set to `true` in `onEnded` when a swipe is detected but is **never cleared in `onEnded`**. It only gets reset by `resetSwipe()` (called in `onChanged` when `!isGestureActive`) or `resetForNewPiece()`.
+### C1. GameViewModel never cancels tickTask on deallocation
 
-**Scenario:** Fast swipe → `hasSwiped = true`. Immediate second tap (before new piece). If `onChanged` doesn't fire on the second tap — the very edge case the `gestureStartZoneLayout` fallback exists for — `hasSwiped` is still `true`. The `LongPressGesture` guard at line 353 (`guard !gestureHandler.hasSwiped`) would **wrongly suppress hold auto-repeat** on the second gesture.
+**File:** `GameViewModel.swift:36`
 
-**Fix:** Clear `hasSwiped` at the top of `onEnded` before processing, or reset it when `isGestureActive` transitions to `false`.
+The `tickTask` is created in `init` and stored as a property, but there is no `deinit` to cancel
+it. If `ContentView` is ever dismissed (e.g., future multi-scene setup), the task continues running
+and calling `apply()` on a deallocated `@Observable` object. With the `@Observable` macro, the
+object is retained by the task closure — a **retain cycle**: the ViewModel will never be
+deallocated as long as the GameController is running.
+
+**Fix:** Add a `deinit` that cancels the task:
 
 ```swift
-// In onEnded, before any processing:
-gestureHandler.hasSwiped = false
-```
-
-#### 2. `resetForNewPiece()` fires on every `pieceBlocks` change — not just new spawns
-
-**Location:** `ContentView.swift:378-384`
-
-```swift
-.onChange(of: viewModel.pieceBlocks) {
-    guard !gestureHandler.isGestureActive else { return }
-    gestureHandler.resetForNewPiece()
+deinit {
+    tickTask?.cancel()
 }
 ```
 
-`pieceBlocks` changes on **every game tick** — gravity drop, rotation, hard drop, and new piece spawn. `resetForNewPiece()` clears both `hasHardDropped` and `hasSwiped`. The `!isGestureActive` guard means it only fires when no gesture is active, which limits the blast radius, but the intent is wrong: this should only fire when a new piece spawns, not on every tick.
+### C2. Tests create a real GameViewModel with a live GameController event stream
 
-This also partially masks Bug #1 (clearing `hasSwiped` on every tick), making the codebase fragile — if the guard condition ever changes, Bug #1 becomes much more severe.
+**File:** `VibeTetrisTests/VibeTetrisTests.swift:15`
 
-**Fix:** Respond to a "new piece" signal rather than `pieceBlocks` changes. Options:
-- Add a `newPieceTrigger` counter in `GameViewModel` (like `hardDropTrigger`), or
-- Detect new-piece by checking if `pieceBlocks` min-Y jumped to the spawn row (0).
+`makeVM()` constructs a real `GameViewModel(settings:)`, which spins up a `GameController` with an
+active `AsyncStream`. Events from the real game engine can fire during tests, causing flaky
+assertions. The test harness should use a mock/stubbed controller or a test-only initializer that
+takes a `GameEvent` publisher.
 
-#### 3. Race: `holdStart` can fire after `onEnded` for gestures ≈ DAS duration
-
-**Location:** `ContentView.swift:348-356`
-
-`LongPressGesture(minimumDuration: DAS)` fires its `onEnded` exactly at the DAS mark. If the user lifts their finger at ~170ms, the `DragGesture.onEnded` and `LongPressGesture.onEnded` are essentially simultaneous. Swift concurrency doesn't guarantee ordering here.
-
-If `LongPressGesture.onEnded` runs **after** `DragGesture.onEnded`:
-- `isGestureActive` is already `false`, `lockedIntent` is still set
-- `holdStart()` sees `!isHolding` and a valid `lockedIntent`
-- ARR loop starts **after** the user released — one unwanted extra movement
-
-**Fix:** In `holdStart()`, add a guard for `isGestureActive`:
-
-```swift
-func holdStart(viewModel: GameViewModel) {
-    guard let intent = lockedIntent, !isHolding, isGestureActive else { return }
-    guard intent != .rotate else { return }
-    // ...
-}
-```
-
-This ensures hold only starts while the drag is still active.
+**Fix:** Add a test-only `init(events: some AsyncSequence<GameEvent>)` or inject a `GameController`
+protocol.
 
 ---
 
-### 🟡 Design Concerns
+## High
 
-#### 4. Wide pieces get oversized rotate zones
+### H1. Duplicate rendering code between iOS and macOS
 
-**Location:** `ContentView.swift:427`
+**File:** `ContentView.swift:496-547 (iOS)` and `ContentView.swift:691-742 (macOS)`
 
-```swift
-let rotateWidth = max(cellSize * 3, cellSize * CGFloat(span))
-```
+`iOSLineClearBurnView`/`iOSHardDropPieceView` and `lineClearBurnView`/`hardDropPieceView` are
+near-identical. The only difference is the `#if os(iOS)`/`#if os(macOS)` guard and the function
+name prefix. Same code, same logic, same parameters.
 
-For any piece with `span >= 4` (e.g., I-piece horizontally oriented, or future wide pieces), the rotate zone grows to 4+ cells. On a 10-wide board, that leaves only 6 cells total for left + right zones. The rotate zone dominates the screen.
+**Fix:** Make them platform-agnostic. The functions already take `size: CGSize` as a parameter, so
+they work on both platforms. Remove the `#if os` split.
 
-**Consider:** Capping `rotateWidth` at `cellSize * 4` or `cellSize * 5` to guarantee minimum side-zone width, especially for 4-wide pieces like the I-tetromino.
+### H2. `calculateZoneLayout` recomputes on every render pass
 
-#### 5. Dual `isGestureActive` — one in `GestureHandler`, one in `ContentView`
+**File:** `ContentView.swift:208-214`
 
-**Location:** `GestureHandler.swift:15` and `ContentView.swift:39`
+Called unconditionally in the iOS body view, this runs on every state change — including every
+game tick (piece movement, score update, etc.). It performs `pieceBlocks.map(\.x).min()!` and
+`pieceBlocks.map(\.x).max()!` on every render.
 
-Both track the same concept. `ContentView.isGestureActive` gates intent-locking (line 227) and `resetForNewPiece()` (line 382). `GestureHandler.isGestureActive` is used in the hold race fix and `resetForNewPiece()`.
+**Fix:** Cache the result in a `@State` and only recompute when `pieceBlocks` or `gridWidth`
+actually change, using `.onChange`.
 
-They're kept in sync but barely — both are set to `true`/`false` in parallel at nearly every gesture boundary. A single missed update would desynchronize them.
+### H3. `GestureHandler` does not cancel `arrTask` on deallocation
 
-**Consider:** Using only `GestureHandler.isGestureActive` and reading it from `ContentView`. The `ContentView` state variable becomes redundant.
+**File:** `GestureHandler.swift:15`
 
-#### 6. Haptic feedback on every ARR tick (50ms)
+If the `GestureHandler` is deallocated while an ARR loop is active, the `Task` continues
+executing. Although `ContentView` holds it as `@State` so this is unlikely in practice, it is a
+correctness gap.
 
-**Location:** `GestureHandler.swift:88`
+**Fix:** Add a `deinit { holdStop() }`.
 
-At 50ms intervals, that's 20 haptic pulses per second. On devices with precise Taptic Engines this can feel muddy or fatiguing over long holds. iOS's `UIImpactFeedbackGenerator` is not designed for high-frequency use — Apple's own docs recommend throttling.
+### H4. `Task.sleep` used for flash delay — violates project convention
 
-**Consider:** Only firing haptics on the first ARR tick (DAS transition) and every Nth subsequent tick (e.g., every 3rd = ~150ms).
+**File:** `ContentView.swift:670`
 
-#### 7. Swipe direction overrides zone intent unconditionally
+CLAUDE.md states: *"Animation completion uses `withAnimation(completionCriteria: .logicallyComplete)`
+— not `Task.sleep` buffers."* Yet the hard-drop flash delay at line 670 uses
+`Task.sleep(for: .milliseconds(...))`.
 
-**Location:** `ContentView.swift:283-294`
+**Fix:** Chain the flash toggle inside the `withAnimation` completion block with a short
+`withAnimation` for the fade-out, or use a second `withAnimation` with a delay.
 
-A fast horizontal swipe always moves left/right regardless of which zone the finger started in. This means:
-- Starting in the **rotate zone** and swiping left → moves left, doesn't rotate
-- Starting in the **left zone** and swiping right → moves right (opposite of zone intent)
+### H5. `ObservableSettings` overrides user-persisted animation preferences on init
 
-This can be surprising. The zone intent was locked for a reason.
-
-**Consider:** Either respect the locked intent on swipes (a swipe in the rotate zone → rotate, not move), or document this as intentional "swipe = fast move regardless of zone" behavior.
-
-#### 8. `calculateZoneLayout` called on every `GeometryReader` render
-
-**Location:** `ContentView.swift:209-214`
-
-The zone layout is recalculated on every render pass of the `GeometryReader`, which includes every frame of hard-drop and line-clear animations. The calculation itself is cheap (min/max of a small set), but it's unnecessary work during animations that don't affect piece position.
-
-**Consider:** Caching the zone layout and only recalculating when `pieceBlocks` or `geo.size` changes.
-
-#### 9. `swipeMaxDuration` (300ms) is uncoupled from `dasDelay` (170ms)
-
-**Location:** `Constants.swift:182-186`
-
-If DAS is ever changed (e.g., a "sensitivity" setting), the swipe timing threshold should scale with it. A 300ms swipe max with a 100ms DAS means almost any deliberate movement is a swipe. A 300ms swipe max with a 300ms DAS means swipes are nearly impossible.
-
-**Consider:** Expressing `swipeMaxDuration` as a multiple of `dasDelay`:
+**File:** `ObservableSettings.swift:31-32`
 
 ```swift
-static let swipeMaxDuration = dasDelay * 1.5  // 255ms with current DAS
+settings.isHardDropAnimated = true
+settings.isLineClearAnimated = true
 ```
+
+These lines unconditionally force animations on every time `ObservableSettings()` is created,
+overriding whatever `PersistentGameSettings` stored. If the user disabled animations, they are
+re-enabled on next launch.
+
+**Fix:** Remove the forced overrides. Let the persisted values stand.
 
 ---
 
-### 🟢 Code Quality
+## Medium
 
-#### 10. Magic numbers in zone indicator rendering
+### M1. `ContentView` is 812 lines — single-responsibility violation
 
-**Location:** `ContentView.swift:447-448, 488`
+**File:** `ContentView.swift`
+
+Contains: iOS body layout, macOS body layout, zone indicator rendering, zone layout computation,
+gesture handling state, animation triggers, line-clear burn rendering, hard-drop piece rendering,
+and keyboard handling. The iOS gesture system alone (lines 207-370) is a substantial subsystem.
+
+**Fix:** Extract at minimum: (a) `IOSZoneLayoutCalculator` (or a `@Observable` class),
+(b) `IOSGestureOverlayView` (the entire gesture `Color.clear` overlay as its own view),
+(c) `LineClearBurnOverlayView` and `HardDropOverlayView` as standalone views.
+
+### M2. `pieceBlocks.map(\.x)` called multiple times in `calculateZoneLayout`
+
+**File:** `ContentView.swift:412-416`
 
 ```swift
-let iconSize: CGFloat = 30
+let minX = CGFloat(pieceBlocks.map(\.x).min()!)
+let maxX = CGFloat(pieceBlocks.map(\.x).max()!)
 // ...
-.padding(.top, 20)
+span = pieceBlocks.map(\.x).max()! - pieceBlocks.map(\.x).min()! + 1
 ```
 
-These violate the CLAUDE.md convention ("No magic numbers"). Should be in `Constants.Layout.iOS`.
+The `map(\.x).min()` and `map(\.x).max()` are each computed twice.
 
-#### 11. Zone intent resolution repeats the same pattern 3 times
+**Fix:** Store `minX` and `maxX` and derive `span = Int(maxX - minX) + 1`.
 
-**Location:** `ContentView.swift:302-332`
+### M3. Deep `GeometryReader` nesting in iOS body
 
-The intent-fallback logic (locked → start layout → fresh layout) repeats the identical zone-boundary check three times:
+**File:** `ContentView.swift:175` and `ContentView.swift:190`
+
+The iOS body has `GeometryReader` at line 175, and a second `GeometryReader` inside the board
+overlay at line 190. `GeometryReader` forces lazy layout and is known to cause performance issues.
+The inner one is only used to get the board size for the animation overlays.
+
+**Fix:** Pass the board size from the outer `GeometryReader` into the overlay views as a parameter
+instead of nesting another `GeometryReader`.
+
+### M4. Zone indicator alpha values are magic numbers
+
+**File:** `ContentView.swift:429-431`
 
 ```swift
-if value.startLocation.x < leftEdge { intent = .left }
-else if value.startLocation.x > rightEdge { intent = .right }
-else { intent = .rotate }
+let centerAlpha: CGFloat = 0.04
+let iconAlpha: CGFloat = 0.12
+let flashAlpha: CGFloat = 0.12
 ```
 
-**Consider:** Extract to a helper:
+CLAUDE.md says *"All sizes, opacities, durations, and colors live in `Constants.swift`."* These
+three alphas are not in Constants.
 
-```swift
-private func intent(for x: CGFloat, layout: ZoneLayout) -> GestureHandler.Intent {
-    if x < layout.leftWidth { return .left }
-    if x > layout.leftWidth + layout.rotateWidth { return .right }
-    return .rotate
-}
-```
+**Fix:** Move to `Constants.Layout.iOS` as `zoneIndicatorCenterAlpha`,
+`zoneIndicatorIconAlpha`, `zoneIndicatorFlashAlpha`.
 
-#### 12. `boardSize(from:gridWidth:gridHeight:)` computed in 3 places
+### M5. `UIImpactFeedbackGenerator` created on every haptic call
 
-**Location:** `ContentView.swift:208, 231, 316`
+**File:** `GestureHandler.swift:107`
 
-If the sizing logic ever changes, all three sites need updating.
+A new `UIImpactFeedbackGenerator` is instantiated for every tap, hold, or hard-drop. Apple's docs
+recommend preparing generators ahead of time. For a fast ARR loop at 50ms intervals, this means
+creating 20 generators per second.
 
-**Consider:** Storing as a derived value from `GeometryReader` and passing `bSize` through the gesture closures.
+**Fix:** Cache three `UIImpactFeedbackGenerator` instances (one per feedback style) as `static let`
+properties in `GestureHandler`, and call `.prepare()` once at launch.
 
-#### 13. `@MainActor` on `GestureHandler` is redundant
+### M6. `KeyCaptureView.Coordinator` can leak event monitors
 
-**Location:** `GestureHandler.swift:7`
+**File:** `SettingsView.swift:170-176`
 
-`ContentView` (which owns the handler via `@State`) is already a SwiftUI view that runs entirely on the main actor. The annotation is harmless but unnecessary.
+`updateNSView` calls `startMonitor` when `isRecording` is true, but `startMonitor` does not check
+if a monitor already exists. If `isRecording` toggles true quickly, a new monitor is added without
+removing the old one.
+
+**Fix:** In `startMonitor`, call `stopMonitor()` first, or guard `if monitor == nil`.
+
+### M7. `SettingsView` and `IOSSettingsView` duplicate state-syncing pattern
+
+**File:** `SettingsView.swift` and `IOSSettingsView.swift`
+
+Both views use the same pattern: local `@State` vars initialized from `settings`, synced via
+`.onChange` back to `settings`. With `@Observable` + `@Bindable`, direct bindings like
+`TextField("Name", text: $settings.playerName)` work in SwiftUI forms and eliminate the need for
+local state + onChange.
+
+**Fix:** Use `@Bindable var settings: ObservableSettings` and bind directly:
+`$settings.playerName`, `$settings.lockImmediatelyAfterHardDrop`, etc.
+
+### M8. macOS keyboard handler processes keys while game is paused
+
+**File:** `ContentView.swift:637-655`
+
+`handleKeyPress` does not check `viewModel.displayState` before dispatching move/rotate/hard-drop.
+Keys are enqueued on the GameController even when paused. (The GameController may drop them, but
+the commands are still sent.)
+
+**Fix:** Guard with
+`guard viewModel.displayState == .playing else { return .ignored }`
+at the top of `handleKeyPress`.
 
 ---
 
-### 🔵 UX Observations
+## Low
 
-#### 14. No guard against gestures while paused
+### L1. `#Preview` only for macOS
 
-Gestures still enqueue actions on `GameController` while paused. The controller may reject them, but the **haptic feedback fires regardless**. A tap in the left zone while paused produces a haptic pulse and a no-op — the user might think something went wrong.
+**File:** `ContentView.swift:807`
 
-**Consider:** Guarding gesture handlers with `viewModel.displayState == .playing`.
+Only a macOS preview exists. No iOS preview.
 
-#### 15. Hard-drop threshold (40pt) is absolute, not relative
+**Fix:** Add `#Preview(traits: .iPhone)` for iOS.
 
-**Location:** `Constants.swift:178`
+### L2. `applyPreset` uses string-key switch instead of key paths
 
-40pt works on iPhone but may feel different on iPad (where the board is smaller relative to the screen, making 40pt a longer swipe). On a future iPad build, this would need adjustment.
+**File:** `ControlsConfig.swift:60-74`
 
-**Consider:** Expressing as a fraction of the board height: `hardDropThreshold = boardSize.height * 0.02`.
+The preset application uses `switch key` on string keys. A type-safe approach using the existing
+`allBindings` key paths would eliminate the string mapping.
+
+**Fix:** Define presets as `[ReferenceWritableKeyPath<ControlsConfig, String>: String]` and apply
+with `self[keyPath: kp] = value`.
+
+### L3. `GridBackgroundView` draws 200 fill + 200 stroke operations
+
+**File:** `TetrisBoardView.swift:27-42`
+
+For a 10×20 grid, every cell is filled and stroked individually. The `.drawingGroup()` cache helps,
+but the initial render is expensive.
+
+**Fix:** Draw the background as a single filled rectangle, then draw only the grid lines
+(horizontal + vertical) as a single path.
+
+### L4. `hardDropRowThreshold = 1` is too low
+
+**File:** `Constants.swift:199`
+
+A row delta of just 1 triggers a hard-drop animation. A normal gravity step also moves the piece
+by 1 row. The condition `cur - prev > 1` means a 2-row jump triggers it, which can happen on a
+normal tick if the piece was at the top and dropped two rows (e.g., initial spawn with a
+simultaneous tick). A threshold of 3-5 would be more robust.
+
+**Fix:** Increase `hardDropRowThreshold` to at least 3.
+
+### L5. Force unwrap on `pieceBlocks.map(\.x).min()!` in `calculateZoneLayout`
+
+**File:** `ContentView.swift:412`
+
+Guarded by an `isEmpty` check on line 407, but a future refactor could break this. Safer to use
+`minX ?? 0` pattern.
 
 ---
 
@@ -214,12 +265,7 @@ Gestures still enqueue actions on `GameController` while paused. The controller 
 
 | Severity | Count | Key items |
 |---|---|---|
-| 🔴 Bug | 3 | `hasSwiped` stale state, `resetForNewPiece` overfires, hold/race condition |
-| 🟡 Design | 7 | Wide-piece zones, dual state, haptic fatigue, swipe overrides intent, render waste, uncoupled timing |
-| 🟢 Quality | 5 | Magic numbers, repeated code, redundant calls, redundant annotation |
-| 🔵 UX | 2 | Paused gestures, absolute threshold |
-
-The gesture system is well-architected overall — intent locking, DAS/ARR, and dynamic zones are thoughtfully implemented. The bugs are subtle edge cases (rapid input, timing boundaries) rather than fundamental flaws. The design concerns are mostly about robustness for future changes (settings, platforms, piece types) rather than current correctness.
-
----
-*Review by project analysis. 2026-06-15.*
+| **Critical** | 2 | ViewModel retain cycle, flaky tests |
+| **High** | 5 | Duplicated rendering code, un-cached zone layout, no deinit on GestureHandler, Task.sleep violation, settings override |
+| **Medium** | 8 | God-view, redundant map calls, GeometryReader nesting, magic numbers, haptic generator churn, monitor leak, duplicate settings pattern, key handling while paused |
+| **Low** | 5 | Missing iOS preview, string-key presets, grid rendering, threshold value, force unwrap |

@@ -31,6 +31,9 @@
 		945C602D2FBEF5500076240F /* VibeTetris.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VibeTetris.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		945C603A2FBEF5530076240F /* VibeTetrisTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VibeTetrisTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		945C60442FBEF5530076240F /* VibeTetrisUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VibeTetrisUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4D2DB272FE05B9400A4CA0C /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
+		F4D2DB282FE05B9400A4CA0C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		F4D2DB292FE05B9400A4CA0C /* REVIEW.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = REVIEW.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -80,6 +83,9 @@
 		945C60242FBEF54F0076240F = {
 			isa = PBXGroup;
 			children = (
+				F4D2DB272FE05B9400A4CA0C /* CLAUDE.md */,
+				F4D2DB282FE05B9400A4CA0C /* README.md */,
+				F4D2DB292FE05B9400A4CA0C /* REVIEW.md */,
 				945C602F2FBEF5500076240F /* VibeTetris */,
 				945C603D2FBEF5530076240F /* VibeTetrisTests */,
 				945C60472FBEF5530076240F /* VibeTetrisUITests */,
