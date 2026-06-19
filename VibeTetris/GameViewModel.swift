@@ -3,6 +3,8 @@ import TetrisCore
 
 @Observable
 final class GameViewModel {
+    // MARK: - UI State
+
     var grid: [PieceCoordinate: TetrominoColor] = [:]
     var gridWidth = Constants.Grid.defaultWidth
     var gridHeight = Constants.Grid.defaultHeight
@@ -23,34 +25,51 @@ final class GameViewModel {
     var lineClearRows: Set<Int> = []
     var lineClearAnimDuration: TimeInterval = 0
     var lineClearTrigger = 0
+    var newPieceTrigger = 0
     var lineClearGridSnapshot: [PieceCoordinate: TetrominoColor]?
     var ghostPieceBlocks: Set<PieceCoordinate> = []
+
+    // MARK: - Dependencies
 
     private let controller: GameController
     private var tickTask: Task<Void, Never>?
     private var previousPieceMinY: Int?
 
     init(settings: ObservableSettings = ObservableSettings()) {
-        controller = GameController(settings: settings.raw)
-        tickTask = Task { @MainActor in
+        let controller = GameController(settings: settings.raw)
+        self.controller = controller
+        self.tickTask = Task { @MainActor in
             for await events in controller.tick {
                 apply(events)
             }
         }
     }
 
+    /// Injected initializer — for tests.
+    /// Pass `tickTask: nil` to suppress the live event loop.
+    init(controller: GameController, tickTask: Task<Void, Never>?) {
+        self.controller = controller
+        self.tickTask = tickTask
+    }
+
+    deinit {
+        tickTask?.cancel()
+    }
+
+    // MARK: - Actions
+
     func start() {
         Task { await controller.start() }
     }
-    func restartGame() { Task { await controller.enqueue(.start) } }
+    func restartGame() { Task { await controller.enqueue(ControlEvent.start) } }
 
-    func moveLeft() { Task { await controller.enqueue(.moveLeft) } }
-    func moveRight() { Task { await controller.enqueue(.moveRight) } }
-    func rotate() { Task { await controller.enqueue(.rotate) } }
-    func hardDrop() { Task { await controller.enqueue(.hardDrop) } }
-    func pause() { Task { await controller.enqueue(.pause) } }
-    func resume() { Task { await controller.enqueue(.resume) } }
-    func stop() { Task { await controller.enqueue(.stop) } }
+    func moveLeft() { Task { await controller.enqueue(ControlEvent.moveLeft) } }
+    func moveRight() { Task { await controller.enqueue(ControlEvent.moveRight) } }
+    func rotate() { Task { await controller.enqueue(ControlEvent.rotate) } }
+    func hardDrop() { Task { await controller.enqueue(ControlEvent.hardDrop) } }
+    func pause() { Task { await controller.enqueue(ControlEvent.pause) } }
+    func resume() { Task { await controller.enqueue(ControlEvent.resume) } }
+    func stop() { Task { await controller.enqueue(ControlEvent.stop) } }
 
     func apply(_ events: Set<GameEvent>) {
         // Pass 1 — collect all event values without applying them.
@@ -96,12 +115,14 @@ final class GameViewModel {
         // 3. Grid
         if let v = gridEvent { grid = v }
 
-        // 4. Current piece (includes hard-drop detection)
+        // 4. Current piece (includes hard-drop and new-piece detection)
         if let p = pieceEvent {
             pieceColor = p.color
+            let cur = p.blocks.map(\.y).min()
+
             if let duration = p.hardDropDuration,
                let prev = previousPieceMinY,
-               let cur = p.blocks.map(\.y).min(),
+               let cur = cur,
                cur - prev > Constants.Gameplay.hardDropRowThreshold {
                 hardDropTrigger &+= 1
                 hardDropDeltaY = cur - prev
@@ -110,7 +131,15 @@ final class GameViewModel {
             } else if p.hardDropDuration == nil {
                 isHardDropping = false
             }
-            previousPieceMinY = p.blocks.map(\.y).min() ?? previousPieceMinY
+
+            // New piece detection: min-Y jumps to spawn row (0) from a higher value
+            if let cur = cur,
+               (previousPieceMinY == nil || previousPieceMinY! > 0),
+               cur == 0 {
+                newPieceTrigger &+= 1
+            }
+
+            previousPieceMinY = cur ?? previousPieceMinY
             pieceBlocks = p.blocks
         }
 
@@ -160,5 +189,3 @@ extension TetrominoColor {
         }
     }
 }
-
-

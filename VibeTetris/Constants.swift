@@ -117,12 +117,16 @@ enum Constants {
         enum iOS {
             // Top bar
             static let topBarPadding: CGFloat = 40
-            static let topBarPaddingVertical: CGFloat = 12
+            static let topBarPaddingVertical: CGFloat = 10
             static let topBarPreviewSize: CGFloat = 80
 
             // Bottom bar
             static let bottomBarPadding: CGFloat = 20
             static let bottomBarPaddingVertical: CGFloat = 12
+
+            // Zone indicators
+            static let zoneIndicatorIconSize: CGFloat = 30
+            static let zoneIndicatorTopInset: CGFloat = 20
         }
     }
 
@@ -174,6 +178,16 @@ enum Constants {
     enum Input {
         static let minimumSwipeDistance: CGFloat = 20
         static let pauseLongPressDuration: TimeInterval = 0.5
+        /// Hard drop requires at least this much vertical travel.
+        static let hardDropThreshold: CGFloat = 40
+        /// Delay before auto-repeat starts (DAS 170ms).
+        static let dasDelay: TimeInterval = 0.170
+        /// Auto-repeat rate (ARR 50ms).
+        static let arrInterval: TimeInterval = 0.050
+        /// Horizontal swipe: minimum horizontal travel (pt).
+        static let swipeDistanceThreshold: CGFloat = 30
+        /// Horizontal swipe: maximum elapsed time (s) — slower = hold, not swipe.
+        static let swipeMaxDuration: TimeInterval = 0.3
     }
 
     // MARK: - Gameplay

@@ -1,136 +1,271 @@
 # VibeTetris — Code Review
 
-## Overview
-
-**VibeTetris** is a SwiftUI-based Tetris game targeting both iOS and macOS. Game logic lives in the external `TetrisCore` package (authored by the same developer); this project is the full-stack UI layer — board rendering, animations, input handling, settings, and presentation state.
-
-The codebase is clean, concise (~600 lines of Swift across 8 files), and makes good use of modern Swift/SwiftUI features (`@Observable`, `AsyncSequence`, `Canvas`, `Task` with `@MainActor`). The animation system is visually rich (hard drop ghosting, line-clear fire bursts).
+*Branch: `ios-settings-restructure` · 2026-06-19*
 
 ---
 
-## What Works Well
+## Git Diff Issues
 
-- **Clean separation of concerns.** `TetrisCore` owns all game logic. `GameViewModel` bridges the core event stream to declarative UI state. Each view file has a single responsibility.
-- **Modern Swift patterns.** Uses `@Observable` (iOS 17/macOS 14), `AsyncSequence` for event streaming, `Canvas` for performant rendering, and structured concurrency throughout.
-- **Cross-platform done right.** macOS gets keyboard input, a `Settings` scene with a `SettingsView`, and an `AppDelegate` for "quit on window close". iOS gets gesture-based controls. Both platforms share the same `ContentView` body.
-- **Rich animation architecture.** Hard drops render an overlay of the piece sliding down; line clears explode cells outward with radial fire gradients. Triggers are timestamp-coordinated with `Task.sleep` to avoid race conditions between Core Animation and the game event stream.
-- **Settings are observable and persisted.** `ObservableSettings` wraps the core's `PersistentGameSettings` and projects writable properties for SwiftUI bindings.
-- **Good git history hygiene.** 19 commits with atomic, well-scoped changes. Each commit message explains *why*, not just *what*.
+The current branch adds `README.md`, `REVIEW.md`, and `CLAUDE.md` as app bundle resources in
+`project.pbxproj`. These documentation files should **not** be bundled with the app. Remove them
+from the Resources build phase.
 
 ---
 
-## Issues & Suggestions
+## Critical
 
-### 1. ✅ ~~"Play Again" fires `hardDrop()` instead of restarting the game~~ *(fixed)*
+### C1. GameViewModel never cancels tickTask on deallocation
 
-**File:** `ContentView.swift`, game over overlay
+**File:** `GameViewModel.swift:36`
+
+The `tickTask` is created in `init` and stored as a property, but there is no `deinit` to cancel
+it. If `ContentView` is ever dismissed (e.g., future multi-scene setup), the task continues running
+and calling `apply()` on a deallocated `@Observable` object. With the `@Observable` macro, the
+object is retained by the task closure — a **retain cycle**: the ViewModel will never be
+deallocated as long as the GameController is running.
+
+**Fix:** Add a `deinit` that cancels the task:
 
 ```swift
-Button("Play Again") {
-    viewModel.hardDrop()
+deinit {
+    tickTask?.cancel()
 }
 ```
 
-This sends a `.hardDrop` action while the game state is `.gameOver`. If `TetrisCore` happens to interpret this as a restart, that's an implicit contract that will break if the core ever changes. A dedicated `start()` call (or a new `restart()` entry point) would be clearer and safer.
+### C2. Tests create a real GameViewModel with a live GameController event stream
 
-**Recommendation:** Call `viewModel.start()` or add a `restart()` action to `GameController` / `GameViewModel`.
+**File:** `VibeTetrisTests/VibeTetrisTests.swift:15`
+
+`makeVM()` constructs a real `GameViewModel(settings:)`, which spins up a `GameController` with an
+active `AsyncStream`. Events from the real game engine can fire during tests, causing flaky
+assertions. The test harness should use a mock/stubbed controller or a test-only initializer that
+takes a `GameEvent` publisher.
+
+**Fix:** Add a test-only `init(events: some AsyncSequence<GameEvent>)` or inject a `GameController`
+protocol.
 
 ---
 
-### 2. 🤔 Hard drop detection heuristic is fragile
+## High
 
-**File:** `GameViewModel.swift`, inside `apply()`
+### H1. Duplicate rendering code between iOS and macOS
+
+**File:** `ContentView.swift:496-547 (iOS)` and `ContentView.swift:691-742 (macOS)`
+
+`iOSLineClearBurnView`/`iOSHardDropPieceView` and `lineClearBurnView`/`hardDropPieceView` are
+near-identical. The only difference is the `#if os(iOS)`/`#if os(macOS)` guard and the function
+name prefix. Same code, same logic, same parameters.
+
+**Fix:** Make them platform-agnostic. The functions already take `size: CGSize` as a parameter, so
+they work on both platforms. Remove the `#if os` split.
+
+### H2. `calculateZoneLayout` recomputes on every render pass
+
+**File:** `ContentView.swift:208-214`
+
+Called unconditionally in the iOS body view, this runs on every state change — including every
+game tick (piece movement, score update, etc.). It performs `pieceBlocks.map(\.x).min()!` and
+`pieceBlocks.map(\.x).max()!` on every render.
+
+**Fix:** Cache the result in a `@State` and only recompute when `pieceBlocks` or `gridWidth`
+actually change, using `.onChange`.
+
+### H3. `GestureHandler` does not cancel `arrTask` on deallocation
+
+**File:** `GestureHandler.swift:15`
+
+If the `GestureHandler` is deallocated while an ARR loop is active, the `Task` continues
+executing. Although `ContentView` holds it as `@State` so this is unlikely in practice, it is a
+correctness gap.
+
+**Fix:** Add a `deinit { holdStop() }`.
+
+### H4. `Task.sleep` used for flash delay — violates project convention
+
+**File:** `ContentView.swift:670`
+
+CLAUDE.md states: *"Animation completion uses `withAnimation(completionCriteria: .logicallyComplete)`
+— not `Task.sleep` buffers."* Yet the hard-drop flash delay at line 670 uses
+`Task.sleep(for: .milliseconds(...))`.
+
+**Fix:** Chain the flash toggle inside the `withAnimation` completion block with a short
+`withAnimation` for the fade-out, or use a second `withAnimation` with a delay.
+
+### H5. `ObservableSettings` overrides user-persisted animation preferences on init
+
+**File:** `ObservableSettings.swift:31-32`
 
 ```swift
-if let prev = previousPieceMinY,
-   let cur = v.map(\.y).min(),
-   cur - prev > 1 {
-    hardDropTrigger &+= 1
-    ...
-}
+settings.isHardDropAnimated = true
+settings.isLineClearAnimated = true
 ```
 
-A hard drop is inferred by detecting a vertical jump greater than 1 row. While this matches normal game physics (gravity moves 1 row/tick), it couples the animation trigger to an assumption about game speed. If a future game mode allows falling 2 rows per tick, the hard drop animation will fire on every gravity step.
+These lines unconditionally force animations on every time `ObservableSettings()` is created,
+overriding whatever `PersistentGameSettings` stored. If the user disabled animations, they are
+re-enabled on next launch.
 
-**Recommendation:** Have `TetrisCore` emit an explicit `GameEvent.hardDropStarted(duration:)` instead of nesting the duration inside `.pieceBlocks`. Likewise `isHardDropping = false` is set when `hardDropDuration == nil` — an explicit `.hardDropCompleted` event would be more intention-revealing.
-
----
-
-### 3. 📐 Hard drop overlay can render blocks off-screen
-
-**File:** `ContentView.swift`, `hardDropPieceView()`
-
-The `TetrisBoardView` guards against out-of-bounds rendering with `guard block.y >= 0, block.x >= 0, ...`. The hard drop overlay in `ContentView` does not — it renders all `pieceBlocks` unconditionally using `minX`/`minY` offsets. If the piece's bounding box extends below the board during animation, cells will render below the canvas.
-
-**Recommendation:** Add the same bounds check, or rely on `.clipShape` by wrapping the overlay in a clipped container that matches the board dimensions.
+**Fix:** Remove the forced overrides. Let the persisted values stand.
 
 ---
 
-### 4. ✅ ~~Zero test coverage~~ *(fixed — 13 tests for GameViewModel.apply())*
+## Medium
 
-**File:** `VibeTetrisTests/VibeTetrisTests.swift`
+### M1. `ContentView` is 812 lines — single-responsibility violation
+
+**File:** `ContentView.swift`
+
+Contains: iOS body layout, macOS body layout, zone indicator rendering, zone layout computation,
+gesture handling state, animation triggers, line-clear burn rendering, hard-drop piece rendering,
+and keyboard handling. The iOS gesture system alone (lines 207-370) is a substantial subsystem.
+
+**Fix:** Extract at minimum: (a) `IOSZoneLayoutCalculator` (or a `@Observable` class),
+(b) `IOSGestureOverlayView` (the entire gesture `Color.clear` overlay as its own view),
+(c) `LineClearBurnOverlayView` and `HardDropOverlayView` as standalone views.
+
+### M2. `pieceBlocks.map(\.x)` called multiple times in `calculateZoneLayout`
+
+**File:** `ContentView.swift:412-416`
 
 ```swift
-@Test func example() async throws {
-    // Write your test here...
-}
+let minX = CGFloat(pieceBlocks.map(\.x).min()!)
+let maxX = CGFloat(pieceBlocks.map(\.x).max()!)
+// ...
+span = pieceBlocks.map(\.x).max()! - pieceBlocks.map(\.x).min()! + 1
 ```
 
-The test target has a single placeholder. `GameViewModel.apply()` has complex event processing (grid merges, hard drop detection, line clear snapshotting, scoring updates) and no tests. The UI test target is equally empty.
+The `map(\.x).min()` and `map(\.x).max()` are each computed twice.
 
-**Recommendation:**
-- Unit-test `apply()` by constructing `Set<GameEvent>` inputs and asserting the resulting `@Observable` properties.
-- Snapshot-test the `TetrisBoardView` and `PiecePreviewView` Canvas output with known grid/piece inputs.
-- UI-test the gesture flow (drag → piece moves) at a high level.
+**Fix:** Store `minX` and `maxX` and derive `span = Int(maxX - minX) + 1`.
+
+### M3. Deep `GeometryReader` nesting in iOS body
+
+**File:** `ContentView.swift:175` and `ContentView.swift:190`
+
+The iOS body has `GeometryReader` at line 175, and a second `GeometryReader` inside the board
+overlay at line 190. `GeometryReader` forces lazy layout and is known to cause performance issues.
+The inner one is only used to get the board size for the animation overlays.
+
+**Fix:** Pass the board size from the outer `GeometryReader` into the overlay views as a parameter
+instead of nesting another `GeometryReader`.
+
+### M4. Zone indicator alpha values are magic numbers
+
+**File:** `ContentView.swift:429-431`
+
+```swift
+let centerAlpha: CGFloat = 0.04
+let iconAlpha: CGFloat = 0.12
+let flashAlpha: CGFloat = 0.12
+```
+
+CLAUDE.md says *"All sizes, opacities, durations, and colors live in `Constants.swift`."* These
+three alphas are not in Constants.
+
+**Fix:** Move to `Constants.Layout.iOS` as `zoneIndicatorCenterAlpha`,
+`zoneIndicatorIconAlpha`, `zoneIndicatorFlashAlpha`.
+
+### M5. `UIImpactFeedbackGenerator` created on every haptic call
+
+**File:** `GestureHandler.swift:107`
+
+A new `UIImpactFeedbackGenerator` is instantiated for every tap, hold, or hard-drop. Apple's docs
+recommend preparing generators ahead of time. For a fast ARR loop at 50ms intervals, this means
+creating 20 generators per second.
+
+**Fix:** Cache three `UIImpactFeedbackGenerator` instances (one per feedback style) as `static let`
+properties in `GestureHandler`, and call `.prepare()` once at launch.
+
+### M6. `KeyCaptureView.Coordinator` can leak event monitors
+
+**File:** `SettingsView.swift:170-176`
+
+`updateNSView` calls `startMonitor` when `isRecording` is true, but `startMonitor` does not check
+if a monitor already exists. If `isRecording` toggles true quickly, a new monitor is added without
+removing the old one.
+
+**Fix:** In `startMonitor`, call `stopMonitor()` first, or guard `if monitor == nil`.
+
+### M7. `SettingsView` and `IOSSettingsView` duplicate state-syncing pattern
+
+**File:** `SettingsView.swift` and `IOSSettingsView.swift`
+
+Both views use the same pattern: local `@State` vars initialized from `settings`, synced via
+`.onChange` back to `settings`. With `@Observable` + `@Bindable`, direct bindings like
+`TextField("Name", text: $settings.playerName)` work in SwiftUI forms and eliminate the need for
+local state + onChange.
+
+**Fix:** Use `@Bindable var settings: ObservableSettings` and bind directly:
+`$settings.playerName`, `$settings.lockImmediatelyAfterHardDrop`, etc.
+
+### M8. macOS keyboard handler processes keys while game is paused
+
+**File:** `ContentView.swift:637-655`
+
+`handleKeyPress` does not check `viewModel.displayState` before dispatching move/rotate/hard-drop.
+Keys are enqueued on the GameController even when paused. (The GameController may drop them, but
+the commands are still sent.)
+
+**Fix:** Guard with
+`guard viewModel.displayState == .playing else { return .ignored }`
+at the top of `handleKeyPress`.
 
 ---
 
-### 5. ✅ ~~`TetrisBoardView` draws every grid cell every frame~~ *(fixed)*
+## Low
 
-**File:** `TetrisBoardView.swift`
+### L1. `#Preview` only for macOS
 
-```swift
-for y in 0..<gridHeight {
-    for x in 0..<gridWidth {
-        context.fill(Path(rect), with: .color(.white))
-        context.stroke(Path(rect), ...)
-    }
-}
-```
+**File:** `ContentView.swift:807`
 
-A 10×20 grid draws 200 white rectangles + 200 strokes every frame (~400 Path operations). In practice this is fine for a 10×20 board on modern hardware, but it's worth noting the `Canvas` redraws entirely whenever the observable grid/piece state changes.
+Only a macOS preview exists. No iOS preview.
 
-**Recommendation:** Pre-compute the background stripe pattern into a static image or `GraphicsContext.ResolvedImage` once, then draw it as a single blit, overlaying only occupied cells. Not urgent unless profiling shows a problem.
+**Fix:** Add `#Preview(traits: .iPhone)` for iOS.
 
----
+### L2. `applyPreset` uses string-key switch instead of key paths
 
-### 6. 🎮 macOS keyboard mapping is Vim-style (subjective)
+**File:** `ControlsConfig.swift:60-74`
 
-**File:** `ContentView.swift`, `handleKeyPress()`
+The preset application uses `switch key` on string keys. A type-safe approach using the existing
+`allBindings` key paths would eliminate the string mapping.
 
-```swift
-case .init("j"): viewModel.moveLeft()
-case .init("l"): viewModel.moveRight()
-case .init("k"): viewModel.rotate()
-```
+**Fix:** Define presets as `[ReferenceWritableKeyPath<ControlsConfig, String>: String]` and apply
+with `self[keyPath: kp] = value`.
 
-Arrow keys are the conventional choice for Tetris. The `hjkl` mapping is clever for Vim users but discoverability is zero — there's no on-screen hint or settings toggle.
+### L3. `GridBackgroundView` draws 200 fill + 200 stroke operations
 
-**Recommendation:** Add arrow key bindings as a fallback, or show the key map in the Info panel on macOS.
+**File:** `TetrisBoardView.swift:27-42`
+
+For a 10×20 grid, every cell is filled and stroked individually. The `.drawingGroup()` cache helps,
+but the initial render is expensive.
+
+**Fix:** Draw the background as a single filled rectangle, then draw only the grid lines
+(horizontal + vertical) as a single path.
+
+### L4. `hardDropRowThreshold = 1` is too low
+
+**File:** `Constants.swift:199`
+
+A row delta of just 1 triggers a hard-drop animation. A normal gravity step also moves the piece
+by 1 row. The condition `cur - prev > 1` means a 2-row jump triggers it, which can happen on a
+normal tick if the piece was at the top and dropped two rows (e.g., initial spawn with a
+simultaneous tick). A threshold of 3-5 would be more robust.
+
+**Fix:** Increase `hardDropRowThreshold` to at least 3.
+
+### L5. Force unwrap on `pieceBlocks.map(\.x).min()!` in `calculateZoneLayout`
+
+**File:** `ContentView.swift:412`
+
+Guarded by an `isEmpty` check on line 407, but a future refactor could break this. Safer to use
+`minX ?? 0` pattern.
 
 ---
 
 ## Summary
 
-| Category        | Rating   |
-|-----------------|----------|
-| Architecture    | ⭐⭐⭐⭐ |
-| Code quality    | ⭐⭐⭐⭐ |
-| Visual design   | ⭐⭐⭐⭐⭐ |
-| Test coverage   | ⭐⭐⭐⭐ |
-| Robustness      | ⭐⭐⭐⭐⭐ |
-
-The project is well-structured, visually impressive, and clearly built with care. The main remaining risks are the implicit hard drop detection heuristic and the off-screen hard-drop overlay rendering.
-
----
-*Review by project analysis. 2026-05-25.*
+| Severity | Count | Key items |
+|---|---|---|
+| **Critical** | 2 | ViewModel retain cycle, flaky tests |
+| **High** | 5 | Duplicated rendering code, un-cached zone layout, no deinit on GestureHandler, Task.sleep violation, settings override |
+| **Medium** | 8 | God-view, redundant map calls, GeometryReader nesting, magic numbers, haptic generator churn, monitor leak, duplicate settings pattern, key handling while paused |
+| **Low** | 5 | Missing iOS preview, string-key presets, grid rendering, threshold value, force unwrap |

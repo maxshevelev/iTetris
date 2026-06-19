@@ -9,14 +9,14 @@ import TetrisCore
 
 // MARK: - Helpers
 
-/// A minimal test view model that doesn't spin up a GameController.
+/// A test view model with no live tick task — no game loop events fire during tests.
 /// `apply()` is called directly with synthetic event sets.
 @MainActor
 func makeVM() -> GameViewModel {
-    // Use minimal settings to avoid persistence side effects
-    let settings = ObservableSettings()
-    settings.playerName = "TestPlayer"
-    return GameViewModel(settings: settings)
+    GameViewModel(
+        controller: GameController(settings: TestGameSettings()),
+        tickTask: nil
+    )
 }
 
 // MARK: - Grid Size

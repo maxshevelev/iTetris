@@ -16,11 +16,15 @@ struct ContentView: View {
         self.controls = controls
     }
     #else
+    let settings: ObservableSettings
+
     init(settings: ObservableSettings = ObservableSettings()) {
+        self.settings = settings
         self._viewModel = State(initialValue: GameViewModel(settings: settings))
     }
     #endif
 
+    @Environment(\.scenePhase) var scenePhase
     @Environment(\.colorScheme) var colorScheme
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
@@ -29,6 +33,13 @@ struct ContentView: View {
     @State private var isAnimatingLineClear = false
     #if os(macOS)
     @FocusState private var isFocused: Bool
+    #endif
+    #if os(iOS)
+    @State private var showSettings = false
+    @State private var gestureHandler = GestureHandler()
+    @State private var showZoneIndicators = true
+    @State private var flashingZone: GestureHandler.Intent?
+    @State private var gestureStartZoneLayout: ZoneLayout?
     #endif
 
     // MARK: - Computed Colors
@@ -77,6 +88,8 @@ struct ContentView: View {
                     .font(.largeTitle.bold())
                 Button("Resume") { viewModel.resume() }
                     .buttonStyle(.borderedProminent)
+                Button("New Game") { viewModel.restartGame() }
+                    .buttonStyle(.bordered)
             }
         }
         .onTapGesture { viewModel.resume() }
@@ -131,50 +144,197 @@ struct ContentView: View {
     #if os(iOS)
     private var iOSBody: some View {
         VStack(spacing: 0) {
-            // Top bar: next piece (left) + pause button (right)
+            // Top bar: Settings (left), next piece (center), Pause (right)
             HStack {
+                Button {
+                    viewModel.pause()
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.bordered)
+                Spacer()
                 PiecePreviewView(blocks: viewModel.nextPieceBlocks, color: viewModel.nextPieceColor)
                     .frame(width: Constants.Layout.iOS.topBarPreviewSize, height: Constants.Layout.iOS.topBarPreviewSize)
                 Spacer()
-                Button(viewModel.displayState == .paused ? "Resume" : "Pause", action: {
+                Button {
                     if viewModel.displayState == .paused {
                         viewModel.resume()
                     } else {
                         viewModel.pause()
                     }
-                })
+                } label: {
+                    Image(systemName: viewModel.displayState == .paused ? "play.fill" : "pause.fill")
+                }
                 .buttonStyle(.bordered)
             }
             .padding(.horizontal, Constants.Layout.iOS.topBarPadding)
             .padding(.vertical, Constants.Layout.iOS.topBarPaddingVertical)
 
-            // Board — constrained, centered with breathing room
-            ZStack {
-                TetrisBoardView(
-                    grid: isAnimatingLineClear ? (viewModel.lineClearGridSnapshot ?? viewModel.grid) : viewModel.grid,
-                    ghostPieceBlocks: viewModel.ghostPieceBlocks,
-                    pieceBlocks: viewModel.pieceBlocks,
-                    pieceColor: viewModel.pieceColor,
-                    isHardDropping: isAnimatingHardDrop,
-                    gridWidth: viewModel.gridWidth,
-                    gridHeight: viewModel.gridHeight
-                )
-                .aspectRatio(CGFloat(viewModel.gridWidth) / CGFloat(viewModel.gridHeight), contentMode: .fit)
-                .overlay {
-                    GeometryReader { geo in
-                        if isAnimatingLineClear {
-                            iOSLineClearBurnView(size: geo.size)
+            // Playing zone — board + zone indicators + gesture handling
+            GeometryReader { geo in
+                ZStack(alignment: .center) {
+                    // Board — constrained, centered with breathing room
+                    ZStack {
+                        TetrisBoardView(
+                            grid: isAnimatingLineClear ? (viewModel.lineClearGridSnapshot ?? viewModel.grid) : viewModel.grid,
+                            ghostPieceBlocks: viewModel.ghostPieceBlocks,
+                            pieceBlocks: viewModel.pieceBlocks,
+                            pieceColor: viewModel.pieceColor,
+                            isHardDropping: isAnimatingHardDrop,
+                            gridWidth: viewModel.gridWidth,
+                            gridHeight: viewModel.gridHeight
+                        )
+                        .aspectRatio(CGFloat(viewModel.gridWidth) / CGFloat(viewModel.gridHeight), contentMode: .fit)
+                        .overlay {
+                            GeometryReader { boardGeo in
+                                if isAnimatingLineClear {
+                                    iOSLineClearBurnView(size: boardGeo.size)
+                                }
+                                if isAnimatingHardDrop {
+                                    iOSHardDropPieceView(size: boardGeo.size)
+                                }
+                            }
                         }
-                        if isAnimatingHardDrop {
-                            iOSHardDropPieceView(size: geo.size)
+                        .overlay {
+                            Rectangle()
+                                .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
+                                .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
+                                .allowsHitTesting(false)
                         }
                     }
-                }
-                .overlay {
-                    Rectangle()
-                        .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
-                        .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
-                        .allowsHitTesting(false)
+
+                    // Zone indicators — dynamic, behind board
+                    let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
+                    let zoneLayout = calculateZoneLayout(
+                        containerWidth: geo.size.width,
+                        boardSize: bSize,
+                        pieceBlocks: viewModel.pieceBlocks,
+                        gridWidth: viewModel.gridWidth
+                    )
+                    if showZoneIndicators {
+                        iOSZoneIndicators(layout: zoneLayout, size: geo.size, boardSize: bSize, flashingZone: flashingZone)
+                            .allowsHitTesting(false)
+                    }
+
+                    // Gesture overlay — captures all touches for dynamic zone system
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    // Lock intent on first call
+                                    if !gestureHandler.isGestureActive {
+                                        gestureHandler.isGestureActive = true
+                                        gestureHandler.resetSwipe()
+                                        let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
+                                        let zl = calculateZoneLayout(
+                                            containerWidth: geo.size.width,
+                                            boardSize: bSize,
+                                            pieceBlocks: viewModel.pieceBlocks,
+                                            gridWidth: viewModel.gridWidth
+                                        )
+                                        gestureStartZoneLayout = zl
+                                        let resolvedIntent = intentForPosition(value.location.x, layout: zl)
+                                        gestureHandler.lockedIntent = resolvedIntent
+                                        flashingZone = resolvedIntent
+                                    }
+                                    let dy = value.translation.height
+                                    // Hard drop takes priority — fire once per gesture
+                                    if dy > Constants.Input.hardDropThreshold, !gestureHandler.hasHardDropped {
+                                        gestureHandler.hasHardDropped = true
+                                        viewModel.hardDrop()
+                                        GestureHandler.haptic(.hardDrop)
+                                        gestureHandler.holdStop()
+                                    }
+                                }
+                                .onEnded { value in
+                                    // Reset per-gesture flags — hasHardDropped is also reset at the
+                                    // end of each path below, but hasSwiped needs clearing here so
+                                    // that if onChanged didn't fire (very quick tap), it doesn't
+                                    // carry over from the previous gesture and wrongly suppress hold.
+                                    gestureHandler.hasSwiped = false
+                                    gestureHandler.hasHardDropped = false
+
+                                    let dy = value.translation.height
+
+                                    // Hard drop already handled in onChanged
+                                    if dy > Constants.Input.hardDropThreshold {
+                                        gestureHandler.holdStop()
+                                        gestureHandler.hasHardDropped = false
+                                        gestureHandler.isGestureActive = false
+                                        gestureStartZoneLayout = nil
+                                        flashingZone = nil
+                                        return
+                                    }
+
+                                    // --- Swipe detection ---
+                                    // Horizontal swipe: significant travel, fast, horizontal-dominant.
+                                    let dx = value.translation.width
+                                    let elapsed = Date().timeIntervalSince1970 - gestureHandler.gestureStartTime
+                                    let isHorizontalSwipe = abs(dx) > abs(dy)
+                                        && abs(dx) > Constants.Input.swipeDistanceThreshold
+                                        && elapsed < Constants.Input.swipeMaxDuration
+
+                                    if isHorizontalSwipe, !gestureHandler.isHolding {
+                                        // Swipe direction always wins — any zone.
+                                        // Skip if hold was active: hold actions already fired and
+                                        // a swipe on release would cancel them out (hold moved left,
+                                        // swipe fires right → looks like nothing happened).
+                                        let direction: GestureHandler.Intent = dx > 0 ? .right : .left
+                                        gestureHandler.hasSwiped = true
+                                        gestureHandler.tap(direction, viewModel: viewModel)
+                                        gestureHandler.holdStop()
+                                        gestureHandler.hasHardDropped = false
+                                        gestureHandler.isGestureActive = false
+                                        gestureStartZoneLayout = nil
+                                        flashingZone = nil
+                                        return
+                                    }
+
+                                    // --- Tap / hold — no swipe detected ---
+
+                                    // Determine intent: use locked intent, or fall back to
+                                    // the zone layout captured at gesture start (in case
+                                    // onChanged didn't fire for a very quick tap).
+                                    let intent: GestureHandler.Intent?
+                                    if let locked = gestureHandler.lockedIntent {
+                                        intent = locked
+                                    } else if let zl = gestureStartZoneLayout {
+                                        intent = intentForPosition(value.startLocation.x, layout: zl)
+                                    } else {
+                                        let bSize = boardSize(from: geo.size, gridWidth: viewModel.gridWidth, gridHeight: viewModel.gridHeight)
+                                        let zl = calculateZoneLayout(
+                                            containerWidth: geo.size.width,
+                                            boardSize: bSize,
+                                            pieceBlocks: viewModel.pieceBlocks,
+                                            gridWidth: viewModel.gridWidth
+                                        )
+                                        intent = intentForPosition(value.startLocation.x, layout: zl)
+                                    }
+
+                                    // Fire the intent if no hold was active — all intents
+                                    // fire regardless of finger movement (tap-and-drag counts).
+                                    if let intent = intent, !gestureHandler.isHolding {
+                                        gestureHandler.tap(intent, viewModel: viewModel)
+                                    }
+                                    // Hold ended — stop auto-repeat
+                                    gestureHandler.holdStop()
+                                    gestureHandler.hasHardDropped = false
+                                    gestureHandler.isGestureActive = false
+                                    gestureStartZoneLayout = nil
+                                    flashingZone = nil
+                                }
+                        )
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: Constants.Input.dasDelay, maximumDistance: 500)
+                                .onEnded { _ in
+                                    // Start hold auto-repeat — uses locked intent.
+                                    // Skip if a swipe was detected (swipe = single action, no repeat).
+                                    guard !gestureHandler.hasSwiped else { return }
+                                    gestureHandler.holdStart(viewModel: viewModel)
+                                }
+                        )
                 }
             }
 
@@ -188,14 +348,139 @@ struct ContentView: View {
             .padding(.vertical, Constants.Layout.iOS.bottomBarPaddingVertical)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .gesture(swipeGesture)
-        .simultaneousGesture(rotateTap)
-        .simultaneousGesture(pauseLongPress)
+        .sheet(isPresented: $showSettings) {
+            IOSSettingsView(settings: settings, showZoneIndicators: $showZoneIndicators)
+        }
         .onAppear {
             viewModel.start()
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                viewModel.pause()
+            }
+        }
         .onChange(of: viewModel.hardDropTrigger) { onHardDropTrigger() }
         .onChange(of: viewModel.lineClearTrigger) { onLineClearTrigger() }
+        .onChange(of: viewModel.newPieceTrigger) {
+            // Only reset hard-drop flag when no gesture is active —
+            // during an active hard-drop gesture, a new piece spawns
+            // but we must not allow a second hard drop on the same gesture.
+            guard !gestureHandler.isGestureActive else { return }
+            gestureHandler.resetForNewPiece()
+        }
+    }
+
+    // MARK: - iOS Zone Layout
+
+    private struct ZoneLayout {
+        let leftWidth: CGFloat
+        let rotateWidth: CGFloat
+        let rightWidth: CGFloat
+    }
+
+    /// Determine the intent for an X position within a zone layout.
+    private func intentForPosition(_ x: CGFloat, layout: ZoneLayout) -> GestureHandler.Intent {
+        if x < layout.leftWidth { return .left }
+        if x > layout.leftWidth + layout.rotateWidth { return .right }
+        return .rotate
+    }
+
+    /// Compute the board size from the container size and grid aspect ratio.
+    private func boardSize(from containerSize: CGSize, gridWidth: Int, gridHeight: Int) -> CGSize {
+        let aspect = CGFloat(gridWidth) / CGFloat(gridHeight)
+        let width = containerSize.width
+        let height = width / aspect
+        if height <= containerSize.height {
+            return CGSize(width: width, height: height)
+        } else {
+            let h = containerSize.height
+            return CGSize(width: h * aspect, height: h)
+        }
+    }
+
+    private func calculateZoneLayout(containerWidth: CGFloat, boardSize: CGSize, pieceBlocks: Set<PieceCoordinate>, gridWidth: Int) -> ZoneLayout {
+        let cellSize = boardSize.width / CGFloat(gridWidth)
+        let boardOffsetX = (containerWidth - boardSize.width) / 2
+
+        let pieceCenterX: CGFloat
+        let span: Int
+        if pieceBlocks.isEmpty {
+            // Default spawn: columns 3–4, visual center = 4.0
+            pieceCenterX = 4.0
+            span = 2
+        } else {
+            let minX = CGFloat(pieceBlocks.map(\.x).min()!)
+            let maxX = CGFloat(pieceBlocks.map(\.x).max()!)
+            // Visual center of the cells occupied by the piece
+            pieceCenterX = (minX + maxX + 1) / 2
+            span = pieceBlocks.map(\.x).max()! - pieceBlocks.map(\.x).min()! + 1
+        }
+
+        let rotateCenterX = boardOffsetX + pieceCenterX * cellSize
+        let rotateWidth = max(cellSize * 3, cellSize * CGFloat(span))
+        let leftWidth = max(0, rotateCenterX - rotateWidth / 2)
+        let rightWidth = max(0, containerWidth - (rotateCenterX + rotateWidth / 2))
+        return ZoneLayout(leftWidth: leftWidth, rotateWidth: rotateWidth, rightWidth: rightWidth)
+    }
+
+    // MARK: - iOS Zone Indicators
+
+    private func iOSZoneIndicators(layout: ZoneLayout, size: CGSize, boardSize: CGSize, flashingZone: GestureHandler.Intent?) -> some View {
+        let centerAlpha: CGFloat = 0.04
+        let iconAlpha: CGFloat = 0.12
+        let flashAlpha: CGFloat = 0.12
+
+        // Fill color — white in dark mode, black in light mode so it's visible on the board.
+        let fill = colorScheme == .dark ? Color.white : Color.black
+
+        let leftW = layout.leftWidth
+        let centerW = layout.rotateWidth
+        let rightW = layout.rightWidth
+
+        let iconSize: CGFloat = Constants.Layout.iOS.zoneIndicatorIconSize
+        
+        // Vertically center within the game grid with 20pt insets
+        let h = boardSize.height
+
+        return ZStack(alignment: .topLeading) {
+            HStack(spacing: 0) {
+                // Left zone — flash fill only
+                Rectangle()
+                    .fill(fill.opacity(flashingZone == .left ? flashAlpha : 0))
+                    .frame(width: leftW)
+
+                // Center zone — fill + flash
+                Rectangle()
+                    .fill(fill.opacity(flashingZone == .rotate ? flashAlpha : centerAlpha))
+                    .frame(width: centerW)
+
+                // Right zone — flash fill only
+                Rectangle()
+                    .fill(fill.opacity(flashingZone == .right ? flashAlpha : 0))
+                    .frame(width: rightW)
+            }
+            .frame(height: h)
+
+            // Icons centered in each zone
+            HStack(spacing: 0) {
+                Image(systemName: "chevron.backward.chevron.backward.dotted")
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(fill.opacity(iconAlpha))
+                    .frame(width: leftW, alignment: .center)
+
+                Image(systemName: "rotate.left")
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(fill.opacity(iconAlpha))
+                    .frame(width: centerW, alignment: .center)
+
+                Image(systemName: "chevron.forward.dotted.chevron.forward")
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundStyle(fill.opacity(iconAlpha))
+                    .frame(width: rightW, alignment: .center)
+            }
+            .padding(.top, Constants.Layout.iOS.zoneIndicatorTopInset)
+        }
+        .frame(width: size.width, height: size.height)
     }
 
     private func iOSStatField(label: String, value: String) -> some View {
@@ -261,31 +546,6 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - iOS Gestures
-
-    private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: Constants.Input.minimumSwipeDistance)
-            .onEnded { value in
-                let dx = value.translation.width
-                let dy = value.translation.height
-                if abs(dx) > abs(dy) {
-                    if dx > 0 { viewModel.moveRight() }
-                    else { viewModel.moveLeft() }
-                } else if dy > 0 {
-                    viewModel.hardDrop()
-                }
-            }
-    }
-
-    private var rotateTap: some Gesture {
-        TapGesture()
-            .onEnded { viewModel.rotate() }
-    }
-
-    private var pauseLongPress: some Gesture {
-        LongPressGesture(minimumDuration: Constants.Input.pauseLongPressDuration)
-            .onEnded { _ in viewModel.pause() }
-    }
     #endif
 
     // MARK: - macOS Body
@@ -323,7 +583,6 @@ struct ContentView: View {
             }
             .padding(.vertical, Constants.Layout.verticalPadding)
             .gesture(swipeGesture)
-            .simultaneousGesture(rotateTap)
             .simultaneousGesture(pauseLongPress)
 
             InfoPanelView(
@@ -351,22 +610,21 @@ struct ContentView: View {
     // MARK: - macOS Gestures
 
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: Constants.Input.minimumSwipeDistance)
+        DragGesture()
             .onEnded { value in
                 let dx = value.translation.width
                 let dy = value.translation.height
-                if abs(dx) > abs(dy) {
+                let dist = sqrt(dx * dx + dy * dy)
+
+                if dist < Constants.Input.minimumSwipeDistance {
+                    viewModel.rotate()
+                } else if abs(dx) > abs(dy) {
                     if dx > 0 { viewModel.moveRight() }
                     else { viewModel.moveLeft() }
                 } else if dy > 0 {
                     viewModel.hardDrop()
                 }
             }
-    }
-
-    private var rotateTap: some Gesture {
-        TapGesture()
-            .onEnded { viewModel.rotate() }
     }
 
     private var pauseLongPress: some Gesture {
