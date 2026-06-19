@@ -26,12 +26,9 @@ final class ObservableSettings {
         set { raw.initialLevel = newValue }
     }
 
-    /// Production initializer — wraps `PersistentGameSettings` and sets animation defaults.
+    /// Production initializer — wraps `PersistentGameSettings`.
     init() {
-        let settings = PersistentGameSettings()
-        settings.isHardDropAnimated = true
-        settings.isLineClearAnimated = true
-        self.raw = settings
+        self.raw = PersistentGameSettings()
     }
 
     /// Injected initializer — for tests or other scenarios that provide their own `GameSettings`.
