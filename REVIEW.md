@@ -268,19 +268,11 @@ No positional assumptions.
 
 ---
 
-### GAP 3 — Pre-clear grid in `linesCleared` event (High priority)
+### ~~GAP 3 — Pre-clear grid in `linesCleared` event~~ (NOT a real gap)
 
-**Where:** `GameViewModel.swift:110-113`
+**Where:** `GameViewModel.swift:112-115`
 
-The UI captures `lineClearGridSnapshot = grid` before applying the new grid event within the same batch. This is a delicate dance: the snapshot must happen before the grid is replaced, but both events arrive in the same `Set<GameEvent>`.
-
-**Risk:** If TetrisCore changes which events are batched together, the animation breaks.
-
-**Fix:** Include `preClearGrid` in the `linesCleared` event:
-
-```swift
-case linesCleared(Int, clearedRows: Set<Int>, animationDuration: TimeInterval, preClearGrid: [PieceCoordinate: TetrominoColor])
-```
+The UI captures `lineClearGridSnapshot = grid` before applying the new grid event within the same batch. This is **not a delicate dance** — it relies on the strict ordering guarantee: within a tick, `.linesCleared` is always applied before `.grid`, so the snapshot captures the pre-clear grid while it's still the current state. The two-pass apply enforces this order. Documented in CLAUDE.md.
 
 ---
 
@@ -325,7 +317,7 @@ The gesture handler implements DAS/ARR as a `Task.sleep` loop that directly call
 | Priority | Gap | Effort |
 |----------|-----|--------|
 | ~~High~~ | ~~GAP 1: Hard-drop event~~ | ~~Low~~ — **Fixed without TetrisCore change** |
-| High | GAP 3: Pre-clear grid in event | Low -- add field to linesCleared |
+| ~~High~~ | ~~GAP 3: Pre-clear grid in event~~ | ~~Low~~ — **Not a real gap — strict ordering guarantee** |
 | ~~Medium~~ | ~~GAP 2: New piece event~~ | ~~Low~~ — **Fixed with `.newPiece` event** |
 | Medium | GAP 7: Piece identity event | Medium -- add shape/rotation to pieceBlocks |
 | Medium | GAP 8: DAS/ARR as game-level | Medium -- press/release API |
