@@ -14,13 +14,13 @@ Initially flagged: the overlay is applied after `.frame(maxWidth: 360, maxHeight
 
 ---
 
-### B2 — `hasSwiped` guard is ineffective (iOS gestures)
+### ~~B2 — `hasSwiped` guard is ineffective (iOS gestures)~~ (FIXED)
 
 **File:** `ContentView.swift:329-336`
 
-The `LongPressGesture.onEnded` guard `guard !gestureHandler.hasSwiped` always evaluates to `false` because `hasSwiped` is set in `DragGesture.onEnded`, which fires **after** the `LongPressGesture.onEnded`. A slow horizontal swipe will incorrectly trigger hold auto-repeat.
+The `LongPressGesture.onEnded` guard `guard !gestureHandler.hasSwiped` always evaluates to `false` because `hasSwiped` was set in `DragGesture.onEnded`, which fires **after** the `LongPressGesture.onEnded`. A slow horizontal swipe would incorrectly trigger hold auto-repeat.
 
-**Fix:** Set `hasSwiped = true` in `DragGesture.onChanged` when horizontal movement exceeds the threshold, not in `onEnded`.
+**Fix applied:** Set `hasSwiped = true` in `DragGesture.onChanged` when swipe conditions are met, so `LongPressGesture.onEnded` can guard against it.
 
 ---
 

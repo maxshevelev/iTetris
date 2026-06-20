@@ -247,6 +247,15 @@ struct ContentView: View {
                                         GestureHandler.haptic(.hardDrop)
                                         gestureHandler.holdStop()
                                     }
+                                    // Mark swipe early so LongPressGesture.onEnded can guard.
+                                    let dx = value.translation.width
+                                    let elapsed = Date().timeIntervalSince1970 - gestureHandler.gestureStartTime
+                                    let isHorizontalSwipe = abs(dx) > abs(dy)
+                                        && abs(dx) > Constants.Input.swipeDistanceThreshold
+                                        && elapsed < Constants.Input.swipeMaxDuration
+                                    if isHorizontalSwipe {
+                                        gestureHandler.hasSwiped = true
+                                    }
                                 }
                                 .onEnded { value in
                                     // Reset per-gesture flags — hasHardDropped is also reset at the
