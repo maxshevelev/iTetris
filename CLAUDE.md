@@ -24,7 +24,7 @@
 | `SettingsView.swift` | macOS Settings window: General tab (player name, gameplay, animations) + Controls tab (key capture, profile picker) |
 | `IOSSettingsView.swift` | iOS Settings sheet: Player, Gameplay, Animations, Display (zone indicators toggle) sections (no key bindings) |
 | `GestureHandler.swift` | Dynamic-zone iOS gesture system: intent locked on touch begin based on finger X vs zone boundaries, DAS/ARR auto-repeat (rotate excluded), hard drop on swipe down, haptic feedback, `resetForNewPiece()` lifecycle |
-| `Constants.swift` | Centralized namespace: `Grid`, `Colors` (app + line-clear fire), `Layout` (board/info-panel/hard-drop/overlay/settings/iOS dimensions), `Animation` (phase thresholds, flash timing), `Input`, `Gameplay` |
+| `Constants.swift` | Centralized namespace: `Grid`, `Colors` (app + line-clear fire), `Layout` (board/info-panel/hard-drop/overlay/settings/iOS dimensions + zone indicator alphas + stats), `Animation` (phase thresholds, flash timing), `Input`, `Gameplay` |
 
 ## Build
 
@@ -38,6 +38,7 @@
 - **Event processing is order-independent.** `GameViewModel.apply()` uses a two-pass collector-then-apply pattern. Pass 1 gathers values without side effects; Pass 2 applies in a strict logical order (dimensions → grid snapshot → grid → piece → …). Never rely on `Set` iteration order.
 - **Animation completion uses `withAnimation(completionCriteria: .logicallyComplete) { } completion: { }`**, not `Task.sleep` buffers.
 - **Ghost piece** is provided by TetrisCore via `.ghostPieceBlocks` event (no local computation).
+- **Hard-drop detection** relies solely on `hardDropDuration != nil` from the `.pieceBlocks` event — no threshold or coordinate heuristic needed. The deltaY is computed locally for the animation.
 - **Colors** are defined in `Constants.Colors`; never inline `Color(red:green:blue:)` in views.
 - **TetrominoColor → SwiftUI Color** mapping lives in `GameViewModel.swift` as a single `swiftUIColor` extension.
 - **`#Preview`** macros are included at the bottom of each view file.

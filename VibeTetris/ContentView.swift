@@ -348,7 +348,7 @@ struct ContentView: View {
             }
 
             // Bottom bar: level · score · lines
-            HStack(spacing: 40) {
+            HStack(spacing: Constants.Layout.iOS.bottomBarSpacing) {
                 iOSStatField(label: "LEVEL", value: "\(viewModel.level)")
                 iOSStatField(label: "SCORE", value: "\(viewModel.score)")
                 iOSStatField(label: "LINES", value: "\(viewModel.linesCleared)")
@@ -435,9 +435,9 @@ struct ContentView: View {
     // MARK: - iOS Zone Indicators
 
     private func iOSZoneIndicators(layout: ZoneLayout, size: CGSize, boardSize: CGSize, flashingZone: GestureHandler.Intent?) -> some View {
-        let centerAlpha: CGFloat = 0.04
-        let iconAlpha: CGFloat = 0.12
-        let flashAlpha: CGFloat = 0.12
+        let centerAlpha = Constants.Layout.iOS.zoneIndicatorCenterAlpha
+        let iconAlpha = Constants.Layout.iOS.zoneIndicatorIconAlpha
+        let flashAlpha = Constants.Layout.iOS.zoneIndicatorFlashAlpha
 
         // Fill color — white in dark mode, black in light mode so it's visible on the board.
         let fill = colorScheme == .dark ? Color.white : Color.black
@@ -493,7 +493,7 @@ struct ContentView: View {
     }
 
     private func iOSStatField(label: String, value: String) -> some View {
-        VStack(alignment: .center, spacing: 1) {
+        VStack(alignment: .center, spacing: Constants.Layout.iOS.statFieldSpacing) {
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)

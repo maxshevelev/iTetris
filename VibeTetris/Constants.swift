@@ -127,6 +127,13 @@ enum Constants {
             // Zone indicators
             static let zoneIndicatorIconSize: CGFloat = 30
             static let zoneIndicatorTopInset: CGFloat = 20
+            static let zoneIndicatorCenterAlpha: CGFloat = 0.04
+            static let zoneIndicatorIconAlpha: CGFloat = 0.12
+            static let zoneIndicatorFlashAlpha: CGFloat = 0.12
+
+            // Stats
+            static let statFieldSpacing: CGFloat = 1
+            static let bottomBarSpacing: CGFloat = 40
         }
     }
 

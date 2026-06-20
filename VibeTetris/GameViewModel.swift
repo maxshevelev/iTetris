@@ -122,8 +122,8 @@ final class GameViewModel {
 
             if let duration = p.hardDropDuration,
                let prev = previousPieceMinY,
-               let cur = cur,
-               cur - prev > Constants.Gameplay.hardDropRowThreshold {
+               let cur = cur {
+                // hardDropDuration != nil is the sole hard-drop signal — no threshold needed.
                 hardDropTrigger &+= 1
                 hardDropDeltaY = cur - prev
                 hardDropAnimDuration = duration

@@ -24,11 +24,13 @@ The `LongPressGesture.onEnded` guard `guard !gestureHandler.hasSwiped` always ev
 
 ---
 
-### B3 — `hardDropRowThreshold = 1` is too low
+### ~~B3 — `hardDropRowThreshold = 1` is too low~~ (FIXED)
 
-**File:** `GameViewModel.swift:126`, `Constants.swift:199`
+**File:** `GameViewModel.swift:119-133`
 
-The threshold `cur - prev > 1` means a 1-row jump does **not** trigger the animation. A piece hard-dropping from y=0 to y=1 (a single row) would be missed. The threshold should be `>= 1` or the constant should be `0`.
+The threshold `cur - prev > 1` meant a 1-row jump would not trigger the animation.
+
+**Fix applied:** Removed the threshold entirely — `hardDropDuration != nil` is the sole hard-drop signal. GAP 1 and B3 are the same root cause; see GAP 1 below.
 
 ---
 
@@ -115,9 +117,9 @@ All file I/O uses `try?` -- disk write failures are invisible to the user. If th
 
 ## 2. Simplification and Cleanup
 
-### S1 — Magic numbers in iOS zone indicators
+### ~~S1 — Magic numbers in iOS zone indicators~~ (FIXED)
 
-**File:** `ContentView.swift:429-431`
+**File:** `ContentView.swift:438-440`
 
 ```swift
 let centerAlpha: CGFloat = 0.04
@@ -125,23 +127,27 @@ let iconAlpha: CGFloat = 0.12
 let flashAlpha: CGFloat = 0.12
 ```
 
-These should be moved to `Constants.Layout.iOS` (e.g., `zoneIndicatorCenterAlpha`, `zoneIndicatorIconAlpha`, `zoneIndicatorFlashAlpha`).
+**Fix applied:** Moved to `Constants.Layout.iOS.zoneIndicatorCenterAlpha`, `zoneIndicatorIconAlpha`, `zoneIndicatorFlashAlpha`.
 
 ---
 
-### S2 — Magic number in iOS stat field
+### ~~S2 — Magic number in iOS stat field~~ (FIXED)
 
-**File:** `ContentView.swift:487`
+**File:** `ContentView.swift:496`
 
 `spacing: 1` should be `Constants.Layout.iOS.statFieldSpacing` or similar.
 
+**Fix applied:** Replaced with `Constants.Layout.iOS.statFieldSpacing`.
+
 ---
 
-### S3 — Magic number in iOS bottom bar
+### ~~S3 — Magic number in iOS bottom bar~~ (FIXED)
 
-**File:** `ContentView.swift:342`
+**File:** `ContentView.swift:351`
 
 `HStack(spacing: 40)` -- the `40` should be `Constants.Layout.iOS.bottomBarSpacing`.
+
+**Fix applied:** Replaced with `Constants.Layout.iOS.bottomBarSpacing`.
 
 ---
 
@@ -236,15 +242,13 @@ The user can save conflicting bindings. A visual warning is shown but there is n
 
 These are features that would simplify the UI by offloading logic from the view model into the game model.
 
-### GAP 1 — Hard-drop event (High priority)
+### ~~GAP 1 — Hard-drop event~~ (FIXED without TetrisCore change)
 
 **Where:** `GameViewModel.swift:119-133`
 
-The UI detects hard drops by comparing `previousPieceMinY` against current min-Y with a threshold heuristic. TetrisCore already knows a hard drop is happening via `pendingHardDropDuration` but does not surface it as a boolean.
+The UI was detecting hard drops by comparing `previousPieceMinY` against current min-Y with a threshold heuristic (`cur - prev > 1`). This missed 1-row hard drops.
 
-**Risk:** A 1-row hard drop (y=0 to y=1) is missed. The UI reverse-engineers game state from coordinates.
-
-**Fix:** Add `isHardDrop: Bool` to the `pieceBlocks` event, or emit a separate `hardDrop` event.
+**Fix applied:** Removed the threshold — `hardDropDuration != nil` from the `.pieceBlocks` event is the sole hard-drop signal. No TetrisCore change needed. The deltaY is computed locally for the animation (`cur - prev`). Also fixes B3.
 
 ---
 
@@ -314,7 +318,7 @@ The gesture handler implements DAS/ARR as a `Task.sleep` loop that directly call
 
 | Priority | Gap | Effort |
 |----------|-----|--------|
-| High | GAP 1: Hard-drop event | Low -- add flag to pieceBlocks |
+| ~~High~~ | ~~GAP 1: Hard-drop event~~ | ~~Low~~ — **Fixed without TetrisCore change** |
 | High | GAP 3: Pre-clear grid in event | Low -- add field to linesCleared |
 | Medium | GAP 2: New piece event | Low -- emit from spawnNewPiece |
 | Medium | GAP 7: Piece identity event | Medium -- add shape/rotation to pieceBlocks |
