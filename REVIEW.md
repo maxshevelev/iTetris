@@ -32,15 +32,15 @@ The threshold `cur - prev > 1` means a 1-row jump does **not** trigger the anima
 
 ---
 
-### B4 — Center zone uses `Rectangle()` instead of `RoundedRectangle(cornerRadius: 12)`
+### ~~B4 — Center zone uses `Rectangle()` instead of `RoundedRectangle(cornerRadius: 12)`~~ (NOT a real issue)
 
 **File:** `ContentView.swift:453`
 
-The CLAUDE.md spec states: "center zone is a `RoundedRectangle(cornerRadius: 12)`". The code uses a plain `Rectangle()`.
+CLAUDE.md was out of date — user confirmed no rounded corners needed. CLAUDE.md has been updated to match the code.
 
 ---
 
-### B5 — `Task.sleep` in `onHardDropTrigger()` violates convention
+### ~~B5 — `Task.sleep` in `onHardDropTrigger()` violates convention~~ (NOT a real issue)
 
 **File:** `ContentView.swift:674-677`
 
@@ -53,7 +53,7 @@ Task { @MainActor in
 }
 ```
 
-**Fix:** Wrap the flash toggle in a `withAnimation(..., completionCriteria: .logicallyComplete)` block with a completion handler.
+However, this is a **delay**, not an animation — `hardDropFlash = true` already happened, and there's nothing to animate. The convention applies to animation completions; for a simple delay, `Task.sleep` is the correct tool. Not worth fixing.
 
 ---
 
