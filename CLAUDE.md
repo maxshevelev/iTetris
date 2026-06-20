@@ -3,7 +3,7 @@
 ## Architecture & Stack
 
 - **UI:** SwiftUI (iOS 17+ / macOS 14+) with `@Observable` macro, `Canvas` rendering
-- **TetrisCore branch:** `main` (SRS rotation wall kicks, `.start` restart event, ghost piece event)
+- **TetrisCore branch:** `main` (SRS rotation wall kicks, `.start` restart event, ghost piece event, `.newPiece` event)
 - **Cross-platform:** Single codebase; macOS gets `Settings` scene, keyboard input, AppDelegate; iOS gets gesture controls
 - **State flow:** `GameController` (actor) → `AsyncStream<Set<GameEvent>>` → `GameViewModel.apply()` → `@Observable` properties → SwiftUI views
 - **Settings:** `PersistentGameSettings` from TetrisCore, proxied through `ObservableSettings` for SwiftUI bindings
@@ -39,6 +39,8 @@
 - **Animation completion uses `withAnimation(completionCriteria: .logicallyComplete) { } completion: { }`**, not `Task.sleep` buffers.
 - **Ghost piece** is provided by TetrisCore via `.ghostPieceBlocks` event (no local computation).
 - **Hard-drop detection** relies solely on `hardDropDuration != nil` from the `.pieceBlocks` event — no threshold or coordinate heuristic needed. The deltaY is computed locally for the animation.
+- **New piece detection** uses the `.newPiece` event from TetrisCore — no positional heuristic.
+- **New piece detection** uses the `.newPiece` event from TetrisCore — no positional heuristic.
 - **Colors** are defined in `Constants.Colors`; never inline `Color(red:green:blue:)` in views.
 - **TetrominoColor → SwiftUI Color** mapping lives in `GameViewModel.swift` as a single `swiftUIColor` extension.
 - **`#Preview`** macros are included at the bottom of each view file.

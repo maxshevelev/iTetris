@@ -85,6 +85,7 @@ final class GameViewModel {
         var topScoresEvent: [StoredScore]?
         var playerNameEvent: String?
         var ghostEvent: Set<PieceCoordinate>?
+        var newPieceEvent: Bool = false
 
         for event in events {
             switch event {
@@ -99,6 +100,7 @@ final class GameViewModel {
             case .state(let v):                    stateEvent = v
             case .topScores(let v):                topScoresEvent = v
             case .playerName(let v):               playerNameEvent = v
+            case .newPiece:                        newPieceEvent = true
             }
         }
 
@@ -132,10 +134,8 @@ final class GameViewModel {
                 isHardDropping = false
             }
 
-            // New piece detection: min-Y jumps to spawn row (0) from a higher value
-            if let cur = cur,
-               (previousPieceMinY == nil || previousPieceMinY! > 0),
-               cur == 0 {
+            // New piece — provided by TetrisCore via .newPiece event
+            if newPieceEvent {
                 newPieceTrigger &+= 1
             }
 

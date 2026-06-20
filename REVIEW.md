@@ -252,13 +252,19 @@ The UI was detecting hard drops by comparing `previousPieceMinY` against current
 
 ---
 
-### GAP 2 — New piece event (Medium priority)
+### ~~GAP 2 — New piece event~~ (FIXED)
 
-**Where:** `GameViewModel.swift:135-140`
+**Where:** `GameViewModel.swift:137-142`
 
-The UI detects new pieces by checking if min-Y jumps to 0. This is a positional heuristic that breaks if spawn position ever changes.
+The UI was detecting new pieces by checking if min-Y jumps to 0 — a positional heuristic that breaks if spawn position ever changes.
 
-**Fix:** Emit a `newPiece` event from `spawnNewPiece()`, or include a monotonically increasing piece index in `pieceBlocks`.
+**Fix applied:** TetrisCore now emits `.newPiece` event (merged to `main`). UI uses it directly:
+```swift
+if newPieceEvent {
+    newPieceTrigger &+= 1
+}
+```
+No positional assumptions.
 
 ---
 
@@ -320,7 +326,7 @@ The gesture handler implements DAS/ARR as a `Task.sleep` loop that directly call
 |----------|-----|--------|
 | ~~High~~ | ~~GAP 1: Hard-drop event~~ | ~~Low~~ — **Fixed without TetrisCore change** |
 | High | GAP 3: Pre-clear grid in event | Low -- add field to linesCleared |
-| Medium | GAP 2: New piece event | Low -- emit from spawnNewPiece |
+| ~~Medium~~ | ~~GAP 2: New piece event~~ | ~~Low~~ — **Fixed with `.newPiece` event** |
 | Medium | GAP 7: Piece identity event | Medium -- add shape/rotation to pieceBlocks |
 | Medium | GAP 8: DAS/ARR as game-level | Medium -- press/release API |
 | Low | GAP 4: Piece queue | High -- new 7-bag system |
