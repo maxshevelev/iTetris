@@ -561,56 +561,70 @@ struct ContentView: View {
 
     #if os(macOS)
     private var macOSBody: some View {
-        HStack(alignment: .top, spacing: Constants.Layout.hStackSpacing) {
-            Spacer(minLength: 0)
+        GeometryReader { geo in
+            let pad = Constants.Layout.verticalPadding
+            let availableHeight = geo.size.height - pad * 2
 
-            TetrisBoardView(
-                grid: isAnimatingLineClear ? (viewModel.lineClearGridSnapshot ?? viewModel.grid) : viewModel.grid,
-                ghostPieceBlocks: viewModel.ghostPieceBlocks,
-                pieceBlocks: viewModel.pieceBlocks,
-                pieceColor: viewModel.pieceColor,
-                isHardDropping: isAnimatingHardDrop,
-                gridWidth: viewModel.gridWidth,
-                gridHeight: viewModel.gridHeight
-            )
-            .frame(maxWidth: Constants.Layout.boardMaxWidth, maxHeight: .infinity)
-            .overlay {
-                GeometryReader { geo in
-                    if isAnimatingLineClear {
-                        lineClearBurnView(size: geo.size)
-                    }
-                    if isAnimatingHardDrop {
-                        hardDropPieceView(size: geo.size)
+            HStack(alignment: .top, spacing: Constants.Layout.Panel.boardGap) {
+                Spacer(minLength: 0)
+
+                TetrisBoardView(
+                    grid: isAnimatingLineClear ? (viewModel.lineClearGridSnapshot ?? viewModel.grid) : viewModel.grid,
+                    ghostPieceBlocks: viewModel.ghostPieceBlocks,
+                    pieceBlocks: viewModel.pieceBlocks,
+                    pieceColor: viewModel.pieceColor,
+                    isHardDropping: isAnimatingHardDrop,
+                    gridWidth: viewModel.gridWidth,
+                    gridHeight: viewModel.gridHeight
+                )
+                .frame(height: availableHeight)
+                .overlay {
+                    GeometryReader { boardGeo in
+                        if isAnimatingLineClear {
+                            lineClearBurnView(size: boardGeo.size)
+                        }
+                        if isAnimatingHardDrop {
+                            hardDropPieceView(size: boardGeo.size)
+                        }
                     }
                 }
-            }
-            .overlay {
-                Rectangle()
-                    .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
-                    .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
-                    .allowsHitTesting(false)
-            }
-            .padding(.vertical, Constants.Layout.verticalPadding)
-            .gesture(swipeGesture)
-            .simultaneousGesture(pauseLongPress)
+                .overlay {
+                    Rectangle()
+                        .fill(.white.opacity(hardDropFlash ? Constants.Animation.Flash.overlayOpacity : 0))
+                        .animation(.easeOut(duration: Constants.Animation.Flash.duration), value: hardDropFlash)
+                        .allowsHitTesting(false)
+                }
+                .gesture(swipeGesture)
+                .simultaneousGesture(pauseLongPress)
 
-            InfoPanelView(
-                score: viewModel.score,
-                level: viewModel.level,
-                linesCleared: viewModel.linesCleared,
-                nextPieceBlocks: viewModel.nextPieceBlocks,
-                nextPieceColor: viewModel.nextPieceColor,
-                onStop: { viewModel.stop() }
-            )
-            .frame(width: Constants.Layout.infoPanelWidth)
-            .padding(.top, Constants.Layout.verticalPadding)
+                VStack(spacing: Constants.Layout.Panel.cardGap) {
+                    NextPieceCard(
+                        blocks: viewModel.nextPieceBlocks,
+                        color: viewModel.nextPieceColor
+                    )
+                    Spacer(minLength: 0)
+                    ControlsHelpView(controls: controls)
+                    Spacer(minLength: 0)
+                    InfoPanelView(
+                        score: viewModel.score,
+                        level: viewModel.level,
+                        linesCleared: viewModel.linesCleared,
+                        onStop: { viewModel.stop() }
+                    )
+                }
+                .frame(width: Constants.Layout.Panel.width, height: availableHeight)
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, pad)
         }
         .onAppear {
             viewModel.start()
             NSApp.activate(ignoringOtherApps: true)
             isFocused = true
+            if let window = NSApp.keyWindow {
+                window.minSize = Constants.Layout.AppWindow.minWindowSize
+            }
         }
         .onChange(of: viewModel.hardDropTrigger) { onHardDropTrigger() }
         .onChange(of: viewModel.lineClearTrigger) { onLineClearTrigger() }

@@ -55,9 +55,7 @@ enum Constants {
 
     enum Layout {
         static let boardMaxWidth: CGFloat = 360
-        static let infoPanelWidth: CGFloat = 160
         static let verticalPadding: CGFloat = 8
-        static let hStackSpacing: CGFloat = 16
 
         /// Shared inset applied to blocks inside grid cells.
         static let blockInsetRatio: CGFloat = 0.08
@@ -74,12 +72,20 @@ enum Constants {
         enum InfoPanel {
             static let sectionSpacing: CGFloat = 24
             static let fieldLabelSpacing: CGFloat = 2
-            static let nextPieceSpacing: CGFloat = 4
-            static let padding: CGFloat = 20
+        }
+
+        enum Panel {
+            static let width: CGFloat = 180
+            static let cardGap: CGFloat = 12
+            static let boardGap: CGFloat = 20
+            static let padding: CGFloat = 16
             static let cornerRadius: CGFloat = 12
             static let shadowOpacity: CGFloat = 0.06
             static let shadowRadius: CGFloat = 4
             static let shadowY: CGFloat = 2
+            static let keyBadgeHorizontalPadding: CGFloat = 6
+            static let keyBadgeVerticalPadding: CGFloat = 2
+            static let keyBadgeCornerRadius: CGFloat = 4
         }
 
         enum Preview {
@@ -110,6 +116,19 @@ enum Constants {
         enum AppWindow {
             static let defaultWidth: CGFloat = 480
             static let defaultHeight: CGFloat = 640
+            /// Minimum cell size for a playable board.
+            static let minCellSize: CGFloat = 36
+
+            /// Minimum window size derived from grid constraints.
+            static var minWindowSize: CGSize {
+                let cell = minCellSize
+                let gridW = CGFloat(Grid.defaultWidth)
+                let gridH = CGFloat(Grid.defaultHeight)
+                return CGSize(
+                    width: cell * gridW + Panel.boardGap + Panel.width + verticalPadding * 2,
+                    height: cell * gridH + verticalPadding * 2
+                )
+            }
         }
 
         // MARK: - iOS Layout

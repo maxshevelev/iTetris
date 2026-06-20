@@ -22,7 +22,7 @@ struct VibeTetrisApp: App {
         }
         #if os(macOS)
         .defaultSize(width: Constants.Layout.AppWindow.defaultWidth, height: Constants.Layout.AppWindow.defaultHeight)
-        .windowResizability(.contentSize)
+        .windowResizability(.contentMinSize)
         #endif
 
         #if os(macOS)

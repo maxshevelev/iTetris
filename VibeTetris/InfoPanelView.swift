@@ -1,12 +1,11 @@
 import SwiftUI
 import TetrisCore
 
+/// Stats card — Score, Level, Lines, and Stop button.
 struct InfoPanelView: View {
     let score: Int
     let level: Int
     let linesCleared: Int
-    let nextPieceBlocks: Set<PieceCoordinate>
-    let nextPieceColor: TetrominoColor
     var onStop: (() -> Void)?
 
     @Environment(\.colorScheme) var colorScheme
@@ -41,22 +40,19 @@ struct InfoPanelView: View {
                     .font(.largeTitle.monospacedDigit().weight(.medium))
             }
 
-            VStack(alignment: .leading, spacing: Constants.Layout.InfoPanel.nextPieceSpacing) {
-                Text("NEXT")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                PiecePreviewView(blocks: nextPieceBlocks, color: nextPieceColor)
-                    .aspectRatio(1, contentMode: .fit)
-            }
-
             if let onStop {
                 Button("Stop", role: .destructive, action: onStop)
                     .buttonStyle(.bordered)
             }
         }
-        .padding(Constants.Layout.InfoPanel.padding)
+        .padding(Constants.Layout.Panel.padding)
+        .frame(maxWidth: .infinity)
         .background(panelBg)
-        .clipShape(RoundedRectangle(cornerRadius: Constants.Layout.InfoPanel.cornerRadius))
-        .shadow(color: .black.opacity(Constants.Layout.InfoPanel.shadowOpacity), radius: Constants.Layout.InfoPanel.shadowRadius, y: Constants.Layout.InfoPanel.shadowY)
+        .clipShape(RoundedRectangle(cornerRadius: Constants.Layout.Panel.cornerRadius))
+        .shadow(
+            color: .black.opacity(Constants.Layout.Panel.shadowOpacity),
+            radius: Constants.Layout.Panel.shadowRadius,
+            y: Constants.Layout.Panel.shadowY
+        )
     }
 }
