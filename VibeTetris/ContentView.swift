@@ -11,14 +11,14 @@ struct ContentView: View {
     #endif
 
     #if os(macOS)
-    init(settings: ObservableSettings = ObservableSettings(), controls: ControlsConfig = ControlsConfig()) {
+    init(settings: ObservableSettings, controls: ControlsConfig) {
         self._viewModel = State(initialValue: GameViewModel(settings: settings))
         self.controls = controls
     }
     #else
     let settings: ObservableSettings
 
-    init(settings: ObservableSettings = ObservableSettings()) {
+    init(settings: ObservableSettings) {
         self.settings = settings
         self._viewModel = State(initialValue: GameViewModel(settings: settings))
     }
@@ -189,10 +189,10 @@ struct ContentView: View {
                         .overlay {
                             GeometryReader { boardGeo in
                                 if isAnimatingLineClear {
-                                    iOSLineClearBurnView(size: boardGeo.size)
+                                    lineClearBurnView(size: boardGeo.size)
                                 }
                                 if isAnimatingHardDrop {
-                                    iOSHardDropPieceView(size: boardGeo.size)
+                                    hardDropPieceView(size: boardGeo.size)
                                 }
                             }
                         }
@@ -502,59 +502,6 @@ struct ContentView: View {
         }
     }
 
-    private func iOSLineClearBurnView(size: CGSize) -> some View {
-        let gw = CGFloat(viewModel.gridWidth)
-        let gh = CGFloat(viewModel.gridHeight)
-        let cellSize = min(size.width / gw, size.height / gh)
-        let offsetX = (size.width - cellSize * gw) / 2
-        let offsetY = (size.height - cellSize * gh) / 2
-        let p = lineClearProgress
-        let cols = viewModel.gridWidth
-
-        return ForEach(Array(viewModel.lineClearRows), id: \.self) { row in
-            ForEach(0..<cols, id: \.self) { col in
-                let dist = abs(CGFloat(col) - CGFloat(cols - 1) / 2) / (CGFloat(cols - 1) / 2)
-                let delay = dist * Constants.Animation.LineClear.waveSpeedMultiplier
-                let cp = max(0, min(1, (p - delay) / max(Constants.Animation.LineClear.epsilon, 1 - delay)))
-
-                cellBurst(cp: cp, cellSize: cellSize)
-                    .position(
-                        x: offsetX + cellSize * (CGFloat(col) + 0.5),
-                        y: offsetY + cellSize * (CGFloat(row) + 0.5)
-                    )
-            }
-        }
-    }
-
-    private func iOSHardDropPieceView(size: CGSize) -> some View {
-        let gw = CGFloat(viewModel.gridWidth)
-        let gh = CGFloat(viewModel.gridHeight)
-        let cellSize = min(size.width / gw, size.height / gh)
-        let blockSize = cellSize * Constants.Layout.HardDrop.blockToCellRatio
-        let inset = cellSize * Constants.Layout.blockInsetRatio
-        let ox = (size.width - cellSize * gw) / 2
-        let oy = (size.height - cellSize * gh) / 2
-
-        let blocks = Array(viewModel.pieceBlocks)
-        let minX = blocks.map(\.x).min() ?? 0
-        let minY = blocks.map(\.y).min() ?? 0
-        let yOffset = CGFloat(viewModel.hardDropDeltaY) * (1 - hardDropProgress) * cellSize
-
-        return ZStack {
-            ForEach(blocks, id: \.self) { block in
-                RoundedRectangle(cornerRadius: Constants.Layout.HardDrop.blockCornerRadius)
-                    .fill(viewModel.pieceColor.swiftUIColor)
-                    .frame(width: blockSize, height: blockSize)
-                    .offset(x: CGFloat(block.x - minX) * cellSize,
-                            y: CGFloat(block.y - minY) * cellSize)
-            }
-        }
-        .position(
-            x: ox + CGFloat(minX) * cellSize + inset + blockSize / 2,
-            y: oy + CGFloat(minY) * cellSize + inset + blockSize / 2 - yOffset
-        )
-    }
-
     #endif
 
     // MARK: - macOS Body
@@ -713,9 +660,8 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Line Clear Burn Overlay (macOS)
+    // MARK: - Animation Overlays (shared)
 
-    #if os(macOS)
     private func lineClearBurnView(size: CGSize) -> some View {
         let gw = CGFloat(viewModel.gridWidth)
         let gh = CGFloat(viewModel.gridHeight)
@@ -768,7 +714,6 @@ struct ContentView: View {
             y: oy + CGFloat(minY) * cellSize + inset + blockSize / 2 - yOffset
         )
     }
-    #endif
 
     // MARK: - Shared Cell Burst
 
@@ -834,6 +779,9 @@ struct ContentView: View {
 
 #if os(macOS)
 #Preview {
-    ContentView()
+    ContentView(
+        settings: ObservableSettings(),
+        controls: ControlsConfig()
+    )
 }
 #endif

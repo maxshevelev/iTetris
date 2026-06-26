@@ -11,7 +11,7 @@ struct IOSSettingsView: View {
     @State private var lineClearAnimated: Bool
     @State private var initialLevel: Int
 
-    init(settings: ObservableSettings, showZoneIndicators: Binding<Bool> = .constant(true)) {
+    init(settings: ObservableSettings, showZoneIndicators: Binding<Bool>) {
         self.settings = settings
         self._showZoneIndicators = showZoneIndicators
         self._nameDraft = State(initialValue: settings.playerName)

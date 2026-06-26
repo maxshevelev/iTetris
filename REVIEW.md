@@ -1,85 +1,74 @@
-# REVIEW.md — VibeTetris Code Review
+# REVIEW.md — VibeTetris Deep Review
 
-Synthesized from six parallel review passes: Architecture, Preview Views, Settings, GameViewModel, GestureHandler, Board + Constants, and TetrisCore API.
-
----
-
-## 1. Bugs and Correctness Issues
-
-### ~~B1 — Hard-drop overlay off-screen on macOS~~ (NOT a real bug)
-
-**File:** `ContentView.swift:567-577`
-
-Initially flagged: the overlay is applied after `.frame(maxWidth: 360, maxHeight: .infinity)` on macOS, so the `GeometryReader` might read a different size than the board. However, `.frame(maxWidth:, maxHeight:)` only sets upper bounds — it doesn't force the view to fill available space. The `.aspectRatio(0.5, .fit)` inside `TetrisBoardView` proposes 360×720, and the frame doesn't change that (720 ≤ infinity). Both the overlay's `GeometryReader` and the board's `Canvas` see 360×720, producing the same `cellSize = 36`. **No visual issue.**
+> Fresh review as of 2026-06-22. Previously fixed issues are struck through. New findings added.
 
 ---
 
-### ~~B2 — `hasSwiped` guard is ineffective (iOS gestures)~~ (FIXED)
+## 1. Bugs
 
-**File:** `ContentView.swift:329-336`
+### B1 — No auto-resume after dismissing iOS Settings
 
-The `LongPressGesture.onEnded` guard `guard !gestureHandler.hasSwiped` always evaluates to `false` because `hasSwiped` was set in `DragGesture.onEnded`, which fires **after** the `LongPressGesture.onEnded`. A slow horizontal swipe would incorrectly trigger hold auto-repeat.
+**File:** `ContentView.swift:149-152` (Settings button), `ContentView.swift:360` (sheet)
 
-**Fix applied:** Set `hasSwiped = true` in `DragGesture.onChanged` when swipe conditions are met, so `LongPressGesture.onEnded` can guard against it.
+Tapping the Settings gear button pauses the game and shows the sheet. Dismissing the sheet (✕ button) leaves the game paused — the user must manually tap the Pause button to resume.
 
----
+**Expected:** Closing Settings should auto-resume.
 
-### ~~B3 — `hardDropRowThreshold = 1` is too low~~ (FIXED)
-
-**File:** `GameViewModel.swift:119-133`
-
-The threshold `cur - prev > 1` meant a 1-row jump would not trigger the animation.
-
-**Fix applied:** Removed the threshold entirely — `hardDropDuration != nil` is the sole hard-drop signal. GAP 1 and B3 are the same root cause; see GAP 1 below.
-
----
-
-### ~~B4 — Center zone uses `Rectangle()` instead of `RoundedRectangle(cornerRadius: 12)`~~ (NOT a real issue)
-
-**File:** `ContentView.swift:453`
-
-CLAUDE.md was out of date — user confirmed no rounded corners needed. CLAUDE.md has been updated to match the code.
-
----
-
-### ~~B5 — `Task.sleep` in `onHardDropTrigger()` violates convention~~ (NOT a real issue)
-
-**File:** `ContentView.swift:674-677`
-
-The CLAUDE.md convention states: "Animation completion uses `withAnimation(completionCriteria: .logicallyComplete) { } completion: { }`, not `Task.sleep` buffers." The flash fade-out uses `Task.sleep`:
+**Fix:**
 
 ```swift
-Task { @MainActor in
-    try? await Task.sleep(for: .milliseconds(Int(Constants.Animation.hardDropFlashDelay * 1000)))
-    hardDropFlash = false
+.onChange(of: showSettings) { oldValue, newValue in
+    if oldValue && !newValue {
+        viewModel.resume()
+    }
 }
 ```
 
-However, this is a **delay**, not an animation — `hardDropFlash = true` already happened, and there's nothing to animate. The convention applies to animation completions; for a simple delay, `Task.sleep` is the correct tool. Not worth fixing.
+---
+
+### ~~B2 — `hasSwiped` guard ineffective~~ (FIXED)
+
+**File:** `ContentView.swift:251-258`
+
+`hasSwiped` was set in `DragGesture.onEnded` (after `LongPressGesture.onEnded`). Now set in `onChanged` so the guard works.
+
+---
+
+### ~~B3 — `hardDropRowThreshold = 1` too low~~ (FIXED)
+
+Hard-drop detection now uses `hardDropDuration != nil` — no threshold needed.
 
 ---
 
 ### B6 — `isHardDropping` can be cleared before animation completes
 
-**File:** `GameViewModel.swift:131-133`
+**File:** `GameViewModel.swift:131-135`
 
-`isHardDropping` is cleared on the next `pieceBlocks` event where `hardDropDuration` is `nil`. If a new piece spawns before `ContentView`'s animation completes, the overlay disappears prematurely because the board rendering layer 3 hides the active piece when `isHardDropping` is `true` (`TetrisBoardView.swift:135`).
+`isHardDropping` is cleared on the next `pieceBlocks` event where `hardDropDuration` is `nil`. If a new piece spawns before the ContentView animation completes, the board's layer 3 would render the new piece (since `isHardDropping` is `false`), but the overlay animation is still running with stale piece data.
 
----
+In practice this is unlikely (the hard-drop animation is very short — `dropInterval * 0.5` ≤ 250ms), but it's a latent race.
 
-### B7 — Default parameters create disconnected state in previews
-
-**File:** `ContentView.swift:14,21`
-
-Both `ContentView` initializers have default parameters (`ObservableSettings()`, `ControlsConfig()`). If `ContentView()` is instantiated outside `VibeTetrisApp` (e.g., in a `#Preview`), it creates fresh settings instances disconnected from the app's single source of truth. The macOS `#Preview` at line 813 uses `ContentView()` with no arguments, so it renders with a blank player name and default settings.
+**Severity:** Low (theoretical — animation is fast enough that the next tick rarely arrives mid-animation).
 
 ---
 
-### B8 — ARR race condition
+### B7 — Preview uses disconnected settings
+
+**File:** `ContentView.swift:836-841`
+
+The macOS `#Preview` creates fresh `ObservableSettings()` and `ControlsConfig()` instances, so it renders with default values (blank player name, default keybindings). Not a runtime bug, but misleading for preview purposes.
+
+**Severity:** Trivial (preview-only).
+
+---
+
+### B8 — ARR fires one extra action after `holdStop()`
 
 **File:** `GestureHandler.swift:77-89`
 
-If `arrTask` is between its guard check (line 81) and the action (lines 83-86) when `holdStop()` runs, `isHolding` becomes `false` but one extra action fires before the guard catches it.
+If `holdStop()` clears `isHolding` between the guard check (line 81) and the action dispatch (lines 83-86), one extra ARR action fires before the next guard iteration catches it.
+
+**Severity:** Low (50ms window, rarely observable).
 
 ---
 
@@ -87,7 +76,9 @@ If `arrTask` is between its guard check (line 81) and the action (lines 83-86) w
 
 **File:** `GestureHandler.swift:26-37`
 
-`tap()` calls `haptic()` unconditionally even if the game rejected the move (e.g., piece at wall). The game model does not indicate whether a move was accepted.
+`tap()` always fires a haptic, even if the game rejected the move (e.g., piece already at wall). The game model doesn't report whether a move was accepted.
+
+**Severity:** Low (cosmetic — extra haptic on wall collision).
 
 ---
 
@@ -95,15 +86,19 @@ If `arrTask` is between its guard check (line 81) and the action (lines 83-86) w
 
 **File:** `GestureHandler.swift:100-108`
 
-A new `UIImpactFeedbackGenerator` is created on every haptic event. Apple recommends reusing instances and calling `.prepare()` ahead of time.
+A new generator is created for every haptic event. Apple recommends reusing instances and calling `.prepare()`.
+
+**Severity:** Low (minor performance).
 
 ---
 
 ### B11 — Silent persistence failures
 
-**File:** `ControlsConfig.swift:163-181`, `ObservableSettings.swift`
+**File:** `ControlsConfig.swift:163-181`
 
-All file I/O uses `try?` -- disk write failures are invisible to the user. If the app support directory is unwritable, settings silently fail to persist.
+All file I/O uses `try?` — disk write failures are invisible to the user.
+
+**Severity:** Low (edge case — unwritable app support directory).
 
 ---
 
@@ -111,53 +106,25 @@ All file I/O uses `try?` -- disk write failures are invisible to the user. If th
 
 **File:** `GestureHandler.swift:80`
 
-`UInt64(Constants.Input.arrInterval * 1_000_000_000)` uses floating-point math for an integer quantity. Use `UInt64(Constants.Input.arrInterval * Double(NSEC_PER_SEC))` or define the constant as `UInt64` directly.
+`UInt64(Constants.Input.arrInterval * 1_000_000_000)` uses floating-point for an integer quantity.
+
+**Severity:** Trivial.
 
 ---
 
-## 2. Simplification and Cleanup
+## 2. Code Quality
 
-### ~~S1 — Magic numbers in iOS zone indicators~~ (FIXED)
+### ~~S1–S3 — Magic numbers in iOS zone indicators, stat field, bottom bar~~ (FIXED)
 
-**File:** `ContentView.swift:438-440`
-
-```swift
-let centerAlpha: CGFloat = 0.04
-let iconAlpha: CGFloat = 0.12
-let flashAlpha: CGFloat = 0.12
-```
-
-**Fix applied:** Moved to `Constants.Layout.iOS.zoneIndicatorCenterAlpha`, `zoneIndicatorIconAlpha`, `zoneIndicatorFlashAlpha`.
+All moved to `Constants.Layout.iOS`.
 
 ---
 
-### ~~S2 — Magic number in iOS stat field~~ (FIXED)
+### ~~S4 — Duplicated animation overlay views (iOS ↔ macOS)~~ (FIXED)
 
-**File:** `ContentView.swift:496`
+`iOSLineClearBurnView` / `iOSHardDropPieceView` were near-identical to `lineClearBurnView` / `hardDropPieceView`.
 
-`spacing: 1` should be `Constants.Layout.iOS.statFieldSpacing` or similar.
-
-**Fix applied:** Replaced with `Constants.Layout.iOS.statFieldSpacing`.
-
----
-
-### ~~S3 — Magic number in iOS bottom bar~~ (FIXED)
-
-**File:** `ContentView.swift:351`
-
-`HStack(spacing: 40)` -- the `40` should be `Constants.Layout.iOS.bottomBarSpacing`.
-
-**Fix applied:** Replaced with `Constants.Layout.iOS.bottomBarSpacing`.
-
----
-
-### S4 — Duplicated line-clear / hard-drop overlay code
-
-**Files:** `ContentView.swift:496-547` (iOS) vs `ContentView.swift:696-747` (macOS)
-
-`iOSLineClearBurnView` and `lineClearBurnView` are near-identical. `iOSHardDropPieceView` and `hardDropPieceView` are near-identical. Both pairs compute `cellSize`, `offsetX/Y`, and iterate the same loops. The only differences are the `#if os(iOS)` guards. This duplication risks drift.
-
-**Fix:** Extract shared `lineClearBurnView(size:)` and `hardDropPieceView(size:)` as platform-agnostic private methods.
+**Fix applied:** Removed the iOS-specific copies. Both platforms now call the shared `lineClearBurnView(size:)` and `hardDropPieceView(size:)` under `// MARK: - Animation Overlays (shared)`. File reduced from 843 → 787 lines (56 lines eliminated).
 
 ---
 
@@ -165,15 +132,17 @@ let flashAlpha: CGFloat = 0.12
 
 **Files:** `InfoPanelView.swift`, `PiecePreviewView.swift`
 
-CLAUDE.md convention: "#Preview macros are included at the bottom of each view file." Neither file has one.
+CLAUDE.md convention requires `#Preview` macros on every view file. Neither has one.
+
+**Fix:** Add `#Preview` blocks at the bottom of each file.
 
 ---
 
 ### S6 — InfoPanelView: repeated label-value sections
 
-**File:** `InfoPanelView.swift:20-42`
+**File:** `InfoPanelView.swift:19-42`
 
-Three near-identical `VStack` blocks for Score, Level, and Lines. Extract into a `StatField(label:value:)` sub-view.
+Three near-identical `VStack` blocks for Score, Level, Lines. Extract into a `StatField(label:value:)` sub-view.
 
 ---
 
@@ -184,15 +153,9 @@ Three near-identical `VStack` blocks for Score, Level, and Lines. Extract into a
 ```swift
 case 49: keyStr = "Space"
 case 53: keyStr = "Escape"
-case 36: keyStr = "Return"
-case 48: keyStr = "Tab"
-case 126: keyStr = "UpArrow"
-case 125: keyStr = "DownArrow"
-case 123: keyStr = "LeftArrow"
-case 124: keyStr = "RightArrow"
 ```
 
-These should be named constants (e.g., `kVK_Space = 49`) or use AppKit's `NSEvent.keyCode` named constants where available.
+Use named constants (`kVK_Space = 49`) or AppKit's `NX_KEYTYPE_` constants.
 
 ---
 
@@ -200,7 +163,9 @@ These should be named constants (e.g., `kVK_Space = 49`) or use AppKit's `NSEven
 
 **Files:** `SettingsView.swift:12-20,31-37`, `IOSSettingsView.swift:14-22,57-63`
 
-Local state is initialized in `init()` with values from `settings`, then overwritten in `.onAppear()` with the same values. The `init` values are thrown away. Use `init` only and remove the `.onAppear` sync.
+Local state initialized in `init()` from `settings`, then overwritten in `.onAppear()` with the same values. The `init` values are thrown away.
+
+**Fix:** Remove the `.onAppear` sync — `init` values are sufficient since the view is created fresh each time the settings sheet opens.
 
 ---
 
@@ -208,129 +173,298 @@ Local state is initialized in `init()` with values from `settings`, then overwri
 
 **File:** `ControlsConfig.swift:139-151`
 
-The user can save conflicting bindings. A visual warning is shown but there is no enforcement. Consider preventing the save or auto-resolving.
+User can save conflicting bindings. Consider preventing the save or auto-resolving.
+
+**Severity:** Low (warning is visible).
 
 ---
 
-### S10 — `IOSSettingsView` default binding
+### S10 — Dead code: `Constants.Gameplay.hardDropRowThreshold`
 
-**File:** `IOSSettingsView.swift:14`
+**File:** `Constants.swift:225`
 
-`showZoneIndicators: Binding<Bool> = .constant(true)` -- if the caller forgets to pass the binding, the value defaults to `true` silently. This is a non-persistent toggle with no persistence layer.
+```swift
+static let hardDropRowThreshold = 1
+```
+
+Hard-drop detection uses `hardDropDuration != nil` — this constant is never read.
+
+**Fix:** Remove it.
 
 ---
 
 ### S11 — `pieceBlocks.map(\.y).min()` allocates on every tick
 
-**File:** `GameViewModel.swift:121`
+**File:** `GameViewModel.swift:123`
 
-`p.blocks.map(\.y).min()` creates an intermediate `[Int]` array on every piece event. Use `p.blocks.min(by: { $0.y < $1.y })?.y` to avoid allocation.
+`p.blocks.map(\.y).min()` creates an intermediate `[Int]` array. Use `p.blocks.min(by: { $0.y < $1.y })?.y` to avoid allocation.
 
 ---
 
-### S12 — CLAUDE.md documentation mismatches
+### S12 — `pieceBlocks.map(\.x)` called 4× in `calculateZoneLayout`
+
+**File:** `ContentView.swift:421-425`
+
+```swift
+let minX = CGFloat(pieceBlocks.map(\.x).min()!)
+let maxX = CGFloat(pieceBlocks.map(\.x).max()!)
+span = pieceBlocks.map(\.x).max()! - pieceBlocks.map(\.x).min()! + 1
+```
+
+**Fix:** Extract once:
+
+```swift
+let xValues = pieceBlocks.map(\.x)
+let minX = CGFloat(xValues.min()!)
+let maxX = CGFloat(xValues.max()!)
+let span = xValues.max()! - xValues.min()! + 1
+```
+
+---
+
+### S13 — `boardSize` recomputed multiple times per render pass
+
+**File:** `ContentView.swift:208-237`
+
+In the iOS `GeometryReader`, `boardSize(from:gridWidth:gridHeight:)` is called at least twice per render (once for zone layout, once inside `onChanged`). During gestures, up to 3×.
+
+**Fix:** Cache as a `@State` or compute once in the `GeometryReader` and pass it down.
+
+---
+
+### S14 — CLAUDE.md documentation mismatches
 
 **File:** `CLAUDE.md`
 
-- Icon alpha documented as `0.06` but code uses `0.12` (ContentView:430)
-- Center zone shape documented as `RoundedRectangle(cornerRadius: 12)` but code uses `Rectangle()` (ContentView:453)
-- File paths in the Key Files table are missing the `VibeTetris/` subdirectory prefix
+- File paths in the Key Files table are missing the `VibeTetris/` subdirectory prefix.
 
 ---
 
-## 3. TetrisCore API Gaps
+## 3. TetrisCore API Opportunities
 
-These are features that would simplify the UI by offloading logic from the view model into the game model.
+These are features that would simplify the UI by offloading logic from the view model into the game model — keeping the model UI-agnostic.
 
-### ~~GAP 1 — Hard-drop event~~ (FIXED without TetrisCore change)
+### ~~GAP 1 — Hard-drop detection~~ (FIXED)
 
-**Where:** `GameViewModel.swift:119-133`
-
-The UI was detecting hard drops by comparing `previousPieceMinY` against current min-Y with a threshold heuristic (`cur - prev > 1`). This missed 1-row hard drops.
-
-**Fix applied:** Removed the threshold — `hardDropDuration != nil` from the `.pieceBlocks` event is the sole hard-drop signal. No TetrisCore change needed. The deltaY is computed locally for the animation (`cur - prev`). Also fixes B3.
+`hardDropDuration != nil` is the sole signal. No TetrisCore change needed.
 
 ---
 
 ### ~~GAP 2 — New piece event~~ (FIXED)
 
-**Where:** `GameViewModel.swift:137-142`
+TetrisCore emits `.newPiece`. UI uses it directly.
 
-The UI was detecting new pieces by checking if min-Y jumps to 0 — a positional heuristic that breaks if spawn position ever changes.
+---
 
-**Fix applied:** TetrisCore now emits `.newPiece` event (merged to `main`). UI uses it directly:
+### ~~GAP 3 — Pre-clear grid snapshot~~ (NOT a real gap)
+
+Two-pass apply with strict ordering (`.linesCleared` before `.grid`) captures the snapshot correctly.
+
+---
+
+### GAP 4 — `hardDropDeltaY` in the event
+
+**File:** `GameViewModel.swift:36,125-132`
+
+The UI tracks `previousPieceMinY` across ticks to compute the hard-drop vertical distance. This is **game logic in the UI layer**.
+
+**Proposal:**
+
 ```swift
-if newPieceEvent {
-    newPieceTrigger &+= 1
-}
+case pieceBlocks(Set<PieceCoordinate>, color: TetrominoColor,
+                 hardDropDuration: TimeInterval?, hardDropDeltaY: Int?)
 ```
-No positional assumptions.
+
+TetrisCore knows `startY` and `currentY` in `hardDropPiece()` — it can compute the delta.
+
+**Benefit:** Removes `previousPieceMinY` state from `GameViewModel`. Makes the ViewModel truly stateless per-tick.
 
 ---
 
-### ~~GAP 3 — Pre-clear grid in `linesCleared` event~~ (NOT a real gap)
+### GAP 5 — Piece shape and position in the event stream
 
-**Where:** `GameViewModel.swift:112-115`
+**File:** `ContentView.swift:410-433` (`calculateZoneLayout`)
 
-The UI captures `lineClearGridSnapshot = grid` before applying the new grid event within the same batch. This is **not a delicate dance** — it relies on the strict ordering guarantee: within a tick, `.linesCleared` is always applied before `.grid`, so the snapshot captures the pre-clear grid while it's still the current state. The two-pass apply enforces this order. Documented in CLAUDE.md.
+The UI receives piece blocks as `Set<PieceCoordinate>` — a flat set of grid cells. No shape, rotation, or spawn position. The iOS gesture system must derive piece center and span from coordinates.
 
----
+**Proposal:**
 
-### GAP 4 — No piece queue
+```swift
+case pieceBlocks(Set<PieceCoordinate>, shape: TetrominoShape, rotation: Int,
+                 x: Int, y: Int, color: TetrominoColor,
+                 hardDropDuration: TimeInterval?, hardDropDeltaY: Int?)
+```
 
-TetrisCore generates a single `nextPiece` and exposes only one "next" piece. Modern Tetris uses a 7-bag randomizer with a visible queue of 3-5 upcoming pieces.
+Or a separate event:
 
----
+```swift
+case currentPiece(TetrominoShape, rotation: Int, x: Int, y: Int)
+```
 
-### GAP 5 — No hold piece
-
-No `holdPiece` event or `.hold` `ControlEvent`. This is a standard Tetris feature.
-
----
-
-### GAP 6 — No soft drop
-
-No `.softDrop` `ControlEvent`. The game only has gravity (auto-drop) and hard drop.
-
----
-
-### GAP 7 — No piece identity / shape event
-
-The UI receives piece coordinates as `Set<PieceCoordinate>` but has no way to know the piece's shape, rotation, or identity. The iOS gesture system must compute piece span from the coordinate set (`ContentView.swift:401-424`).
-
-**Fix:** Add shape, rotation, and piece index to `pieceBlocks`.
+**Benefits:**
+- **Hold mechanic:** Needs shape identity, not block positions.
+- **iOS zones:** Core could compute bounding box and send it directly.
+- **Debugging:** "T at rotation 2" > set of 4 coordinates.
+- **Future features:** T-Spin detection, scoring breakdowns.
 
 ---
 
-### GAP 8 — DAS/ARR should be a game-level concern
+### GAP 6 — Next piece shape identity
 
-**Where:** `GestureHandler.swift:45-89`
+**File:** `GameViewModel.swift:14-15`
 
-The gesture handler implements DAS/ARR as a `Task.sleep` loop that directly calls `viewModel.moveLeft()`. This should be a game-model feature with a `press(action)` / `release(action)` interface. DAS/ARR are already `PersistentGameSettings` in TetrisCore but the gesture handler hardcodes values from `Constants.Input`.
+Same as above — `nextPieceBlocks` sends coordinates and color but not shape.
 
-**Benefits:** Consistency across input methods (macOS keyboard has no DAS/ARR), testability, and configurability.
+**Proposal:**
 
----
+```swift
+case nextPieceBlocks(Set<PieceCoordinate>, shape: TetrominoShape, color: TetrominoColor)
+```
 
-### Summary Priority Table
-
-| Priority | Gap | Effort |
-|----------|-----|--------|
-| ~~High~~ | ~~GAP 1: Hard-drop event~~ | ~~Low~~ — **Fixed without TetrisCore change** |
-| ~~High~~ | ~~GAP 3: Pre-clear grid in event~~ | ~~Low~~ — **Not a real gap — strict ordering guarantee** |
-| ~~Medium~~ | ~~GAP 2: New piece event~~ | ~~Low~~ — **Fixed with `.newPiece` event** |
-| Medium | GAP 7: Piece identity event | Medium -- add shape/rotation to pieceBlocks |
-| Medium | GAP 8: DAS/ARR as game-level | Medium -- press/release API |
-| Low | GAP 4: Piece queue | High -- new 7-bag system |
-| Low | GAP 5: Hold piece | Medium -- new feature |
-| Low | GAP 6: Soft drop | Medium -- new feature |
+**Benefit:** Enables hold mechanic, 7-bag display, and "next piece" labels without reverse-engineering the shape from coordinates.
 
 ---
 
-## 4. Active Tasks from CLAUDE.md
+### GAP 7 — `pieceLocked` event
 
-### Hard-drop overlay off-screen -- **NOT a real bug**
+There is no event for when a piece locks. The UI infers it from hard-drop + new-piece sequences.
 
-**Status:** ✅ Dismissed — no visual issue.
+**Proposal:**
 
-**Reason:** `.frame(maxWidth: 360, maxHeight: .infinity)` only sets upper bounds. The `.aspectRatio(0.5, .fit)` inside `TetrisBoardView` proposes 360×720, and the frame doesn't change that. Both the overlay's `GeometryReader` and the board's `Canvas` see the same size, producing identical `cellSize` calculations.
+```swift
+case pieceLocked
+```
+
+**Benefits:**
+- Lock animation / haptic feedback (currently only hard drops get visual feedback).
+- Score popup at the exact moment of lock.
+- Cleaner state machine — eliminates `isHardDropping` ambiguity.
+
+---
+
+### GAP 8 — `gameStarted` event
+
+**File:** `ContentView.swift:373-379` (`newPieceTrigger` handler)
+
+No explicit signal that the game has reset. The UI infers from `.gridSize` + `.grid` (empty) + `.score(0)` + `.state(.playing)`.
+
+**Proposal:**
+
+```swift
+case gameStarted
+```
+
+**Benefits:**
+- Clear reset of animation state, gesture state, overlays in one place.
+- Cleaner than using `.newPiece` for gesture resets.
+
+---
+
+### GAP 9 — `scoreDelta` event
+
+**File:** `GameViewModel.swift:152`
+
+`.score(Int)` sends the absolute score. The UI cannot distinguish "+40" from a score of "1040".
+
+**Proposal:**
+
+```swift
+case score(Int, delta: Int)
+```
+
+**Benefit:** Enables "score popup" animations ("+40" floating up) without the UI tracking previous score and computing deltas. UI shouldn't do arithmetic on game state.
+
+---
+
+### GAP 10 — Line clear context (Tetris bonus, T-Spin)
+
+**File:** `GameViewModel.swift:159-165`
+
+`.linesCleared` tells the UI how many lines and which rows, but not *how* they were cleared.
+
+**Proposal:**
+
+```swift
+case linesCleared(Int, clearedRows: Set<Int>, animationDuration: TimeInterval,
+                  isTetris: Bool, isTSpin: Bool)
+```
+
+**Benefits:**
+- T-Spin clears could get a different animation.
+- Score breakdown: "T-Spin Triple +800".
+
+---
+
+### GAP 11 — DAS/ARR as game-level concern
+
+**File:** `GestureHandler.swift:45-89`
+
+iOS implements DAS/ARR as a `Task.sleep` loop calling `viewModel.moveLeft()`. macOS keyboard has no DAS/ARR — same key press fires one action. DAS/ARR are already in `PersistentGameSettings` in TetrisCore but the gesture handler hardcodes values from `Constants.Input`.
+
+**Proposal:** `press(action)` / `release(action)` interface on `GameController` that handles DAS/ARR internally.
+
+**Benefits:**
+- Consistency across input methods.
+- Configurability (user-tunable DAS/ARR).
+- Testability.
+
+---
+
+### GAP 12 — Piece queue (7-bag)
+
+TetrisCore generates a single `nextPiece`. Modern Tetris shows 3-5 upcoming pieces.
+
+**Proposal:** Emit a piece queue event:
+
+```swift
+case pieceQueue([TetrominoShape])
+```
+
+---
+
+### GAP 13 — Hold piece
+
+No `holdPiece` event or `.hold` `ControlEvent`.
+
+**Proposal:**
+
+```swift
+case holdPiece(TetrominoShape?)  // nil = no hold available
+case ControlEvent.hold
+```
+
+---
+
+### GAP 14 — Soft drop
+
+No `.softDrop` `ControlEvent`.
+
+**Proposal:**
+
+```swift
+case ControlEvent.softDrop
+```
+
+---
+
+## 4. Summary
+
+| Category | Count | Priority |
+|---|---|---|
+| Bugs (active) | 8 (B1, B6-B12) | B1 = Medium, rest = Low–Trivial |
+| Bugs (fixed) | 3 (B2-B4) | — |
+| Code Quality (active) | 11 (S4-S14) | S4, S5, S10 = Medium; rest = Low |
+| Code Quality (fixed) | 3 (S1-S3) | — |
+| API Opportunities | 11 (GAP 4-14) | GAP 4-5 = High value, GAP 11 = Medium, rest = Nice-to-have |
+
+### Highest-impact quick wins
+
+| # | Item | Effort | Impact |
+|---|---|---|---|
+| 1 | **B1** — Auto-resume after iOS Settings dismiss | 5 min | Medium (UX) |
+| 2 | **S10** — Remove dead `hardDropRowThreshold` | 1 min | Low (cleanup) |
+| 3 | **S12** — Deduplicate `pieceBlocks.map(\.x)` | 1 min | Low (cleanliness) |
+| 4 | **S8** — Remove double-sync in settings views | 5 min | Low (cleanliness) |
+| 5 | **S5** — Add missing `#Preview` macros | 5 min | Low (convention) |
+| 6 | **GAP 4** — `hardDropDeltaY` in TetrisCore event | Medium | High (removes ViewModel state) |
+| 7 | **GAP 5** — Piece shape/position in event | Medium | High (enables hold, simplifies iOS zones) |
