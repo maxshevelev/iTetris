@@ -29,6 +29,9 @@ struct ContentView: View {
     @State private var hardDropFlash = false
     @State private var hardDropProgress: CGFloat = 0
     @State private var isAnimatingHardDrop = false
+    @State private var hardDropPieceBlocks: Set<PieceCoordinate> = []
+    @State private var hardDropPieceColor: TetrominoColor = .cyan
+    @State private var hardDropDeltaY: Int = 0
     @State private var lineClearProgress: CGFloat = 0
     @State private var isAnimatingLineClear = false
     #if os(macOS)
@@ -633,6 +636,10 @@ struct ContentView: View {
     // MARK: - Animation Handlers (shared)
 
     private func onHardDropTrigger() {
+        // Capture piece data before it can be overwritten by a new-piece event.
+        hardDropPieceBlocks = viewModel.pieceBlocks
+        hardDropPieceColor = viewModel.pieceColor
+        hardDropDeltaY = viewModel.hardDropDeltaY
         isAnimatingHardDrop = true
         hardDropProgress = 0
         let duration = viewModel.hardDropAnimDuration
@@ -695,15 +702,15 @@ struct ContentView: View {
         let ox = (size.width - cellSize * gw) / 2
         let oy = (size.height - cellSize * gh) / 2
 
-        let blocks = Array(viewModel.pieceBlocks)
+        let blocks = Array(hardDropPieceBlocks)
         let minX = blocks.map(\.x).min() ?? 0
         let minY = blocks.map(\.y).min() ?? 0
-        let yOffset = CGFloat(viewModel.hardDropDeltaY) * (1 - hardDropProgress) * cellSize
+        let yOffset = CGFloat(hardDropDeltaY) * (1 - hardDropProgress) * cellSize
 
         return ZStack {
             ForEach(blocks, id: \.self) { block in
                 RoundedRectangle(cornerRadius: Constants.Layout.HardDrop.blockCornerRadius)
-                    .fill(viewModel.pieceColor.swiftUIColor)
+                    .fill(hardDropPieceColor.swiftUIColor)
                     .frame(width: blockSize, height: blockSize)
                     .offset(x: CGFloat(block.x - minX) * cellSize,
                             y: CGFloat(block.y - minY) * cellSize)

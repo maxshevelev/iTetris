@@ -65,6 +65,8 @@
 | iOS Settings sheet | ✅ Done |
 | iOS three-zone gesture system with DAS/ARR | ✅ Done |
 | iOS dynamic zones with intent locking | ✅ Done |
+| Remove dead `isHardDropping` from ViewModel | ✅ Done — UI uses hardDropTrigger + isAnimatingHardDrop |
+| Freeze hard-drop overlay piece data on animation start | ✅ Done — same pattern as line-clear grid snapshot |
 
 ---
 

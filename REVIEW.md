@@ -40,15 +40,13 @@ Hard-drop detection now uses `hardDropDuration != nil` — no threshold needed.
 
 ---
 
-### B6 — `isHardDropping` can be cleared before animation completes
+### ~~B6 — `isHardDropping` can be cleared before animation completes~~ (FIXED)
 
-**File:** `GameViewModel.swift:131-135`
+**File:** `GameViewModel.swift`, `ContentView.swift`
 
-`isHardDropping` is cleared on the next `pieceBlocks` event where `hardDropDuration` is `nil`. If a new piece spawns before the ContentView animation completes, the board's layer 3 would render the new piece (since `isHardDropping` is `false`), but the overlay animation is still running with stale piece data.
-
-In practice this is unlikely (the hard-drop animation is very short — `dropInterval * 0.5` ≤ 250ms), but it's a latent race.
-
-**Severity:** Low (theoretical — animation is fast enough that the next tick rarely arrives mid-animation).
+Two fixes:
+1. `isHardDropping` in `GameViewModel` was dead code — set but never read by the UI (UI uses `hardDropTrigger` + `isAnimatingHardDrop`). Removed entirely.
+2. Hard-drop overlay now captures `pieceBlocks`, `pieceColor`, and `hardDropDeltaY` at the start of the animation (in `onHardDropTrigger()`), so a new-piece event mid-animation can't corrupt the overlay. Same pattern as line-clear `lineClearGridSnapshot`.
 
 ---
 
@@ -451,8 +449,8 @@ case ControlEvent.softDrop
 
 | Category | Count | Priority |
 |---|---|---|
-| Bugs (active) | 8 (B1, B6-B12) | B1 = Medium, rest = Low–Trivial |
-| Bugs (fixed) | 3 (B2-B4) | — |
+| Bugs (active) | 7 (B1, B7-B12) | B1 = Medium, rest = Low–Trivial |
+| Bugs (fixed) | 4 (B2-B6) | — |
 | Code Quality (active) | 11 (S4-S14) | S4, S5, S10 = Medium; rest = Low |
 | Code Quality (fixed) | 3 (S1-S3) | — |
 | API Opportunities | 11 (GAP 4-14) | GAP 4-5 = High value, GAP 11 = Medium, rest = Nice-to-have |

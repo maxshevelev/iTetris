@@ -59,7 +59,6 @@ struct ApplyTests {
         vm.apply([.pieceBlocks(blocks, color: .cyan, hardDropDuration: nil)])
         #expect(vm.pieceBlocks == blocks)
         #expect(vm.pieceColor == .cyan)
-        #expect(vm.isHardDropping == false)
     }
 
     @Test("pieceBlocks with large Y delta triggers hard drop")
@@ -69,12 +68,10 @@ struct ApplyTests {
         // Simulate an existing piece at y=0
         let initial: Set<PieceCoordinate> = [PieceCoordinate(x: 4, y: 0)]
         vm.apply([.pieceBlocks(initial, color: .cyan, hardDropDuration: nil)])
-        #expect(vm.isHardDropping == false)
 
         // Next tick: piece jumped to y=10 with a duration -> hard drop
         let dropped: Set<PieceCoordinate> = [PieceCoordinate(x: 4, y: 10)]
         vm.apply([.pieceBlocks(dropped, color: .cyan, hardDropDuration: 0.2)])
-        #expect(vm.isHardDropping == true)
         #expect(vm.hardDropDeltaY == 10)
         #expect(vm.hardDropAnimDuration == 0.2)
         #expect(vm.hardDropTrigger == 1)
@@ -89,12 +86,12 @@ struct ApplyTests {
         vm.apply([.pieceBlocks(initial, color: .cyan, hardDropDuration: nil)])
         let dropped: Set<PieceCoordinate> = [PieceCoordinate(x: 4, y: 10)]
         vm.apply([.pieceBlocks(dropped, color: .cyan, hardDropDuration: 0.2)])
-        #expect(vm.isHardDropping == true)
+        #expect(vm.hardDropTrigger == 1)
 
         // Next normal tick: no duration -> hard drop done
         let normal: Set<PieceCoordinate> = [PieceCoordinate(x: 4, y: 10)]
         vm.apply([.pieceBlocks(normal, color: .cyan, hardDropDuration: nil)])
-        #expect(vm.isHardDropping == false)
+        #expect(vm.hardDropTrigger == 1) // trigger not incremented
     }
 
     @Test("small Y delta does not trigger hard drop")
@@ -106,7 +103,7 @@ struct ApplyTests {
         // Move down by 1 (normal gravity step)
         let oneRow: Set<PieceCoordinate> = [PieceCoordinate(x: 4, y: 1)]
         vm.apply([.pieceBlocks(oneRow, color: .cyan, hardDropDuration: nil)])
-        #expect(vm.isHardDropping == false)
+        #expect(vm.hardDropTrigger == 0)
     }
 
     // MARK: - Next Piece

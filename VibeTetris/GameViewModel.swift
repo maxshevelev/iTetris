@@ -21,7 +21,6 @@ final class GameViewModel {
     var hardDropTrigger = 0
     var hardDropDeltaY: Int = 0
     var hardDropAnimDuration: TimeInterval = 0
-    var isHardDropping = false
     var lineClearRows: Set<Int> = []
     var lineClearAnimDuration: TimeInterval = 0
     var lineClearTrigger = 0
@@ -129,9 +128,6 @@ final class GameViewModel {
                 hardDropTrigger &+= 1
                 hardDropDeltaY = cur - prev
                 hardDropAnimDuration = duration
-                isHardDropping = true
-            } else if p.hardDropDuration == nil {
-                isHardDropping = false
             }
 
             // New piece — provided by TetrisCore via .newPiece event
